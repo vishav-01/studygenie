@@ -1,41 +1,53 @@
 import streamlit as st
 from openai import OpenAI
 
-# page setup
-st.set_page_config(page_title="StudyGenie", page_icon="📚", layout="centered")
+st.set_page_config(page_title="StudyGenie", page_icon="🪄")
 
-st.title("📚 StudyGenie — AI Study Helper")
+# Load API key
+client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
-# Input: API key
-api_key = st.text_input("🔑 Enter your OpenAI API Key", type="password")
+st.title("🪄 StudyGenie – Your AI Study Buddy")
 
-# Input: your question
-question = st.text_area("💬 Ask anything related to your studies:")
+# Navigation
+page = st.sidebar.radio("Menu", ["Doubt Solver", "Motivation Booster"])
 
-# Process
-if st.button("✨ Generate Answer"):
-    if not api_key:
-        st.error("Please enter your API key!")
-    elif not question:
-        st.error("Please type a question!")
-    else:
+# ------------------ DOUBT SOLVER ------------------
+if page == "Doubt Solver":
+    st.header("📘 Ask Any Study Doubt")
+
+    user_question = st.text_area("Type your question here:")
+
+    if st.button("Solve My Doubt"):
+        if user_question.strip() == "":
+            st.warning("Please enter a question.")
+        else:
+            try:
+                response = client.responses.create(
+                    model="gpt-4.1-mini",
+                    input=f"You are StudyGenie, a friendly AI tutor. Answer this doubt simply and clearly:\n{user_question}"
+                )
+
+                answer = response.output[0].content[0].text
+                st.success("✨ Here's your answer:")
+                st.write(answer)
+
+            except Exception as e:
+                st.error(f"Error: {str(e)}")
+
+# ------------------ MOTIVATION BOOSTER ------------------
+elif page == "Motivation Booster":
+    st.header("💖 Motivation Booster")
+
+    if st.button("Give Me Motivation ✨"):
         try:
-            client = OpenAI(api_key=api_key)
-
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system",
-                     "content": "You are StudyGenie — explain concepts in simple, easy, clear student-friendly language."
-                    },
-                    {"role": "user", "content": question}
-                ]
+            response = client.responses.create(
+                model="gpt-4.1-mini",
+                input="Give short, positive, Gen-Z style motivation for students."
             )
 
-            generated_answer = response.choices[0].message.content
-
-            st.subheader("✅ Your Answer:")
-            st.write(generated_answer)
+            motivation = response.output[0].content[0].text
+            st.write("🔥 Your Motivation:")
+            st.write(motivation)
 
         except Exception as e:
-            st.error(f"⚠️ Error: {str(e)}")
+            st.error(f"Error: {str(e)}")
