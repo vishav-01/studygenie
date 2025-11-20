@@ -1,158 +1,41 @@
 import streamlit as st
 from openai import OpenAI
-import base64
-from PIL import Image
-import io
 
-st.set_page_config(
-    page_title="StudyGenie Ultra",
-    page_icon="🪄",
-)
+# page setup
+st.set_page_config(page_title="StudyGenie", page_icon="📚", layout="centered")
 
-client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+st.title("📚 StudyGenie — AI Study Helper")
 
-# ------------------------ UI DESIGN ------------------------
-st.markdown("""
-    <style>
-        .stButton button {
-            background-color: #7b52ff;
-            color: white;
-            padding: 0.6rem 1.5rem;
-            border-radius: 10px;
-            font-size: 1.1rem;
-        }
-        .stTextInput input, .stTextArea textarea {
-            border-radius: 10px;
-            font-size: 1rem;
-        }
-    </style>
-""", unsafe_allow_html=True)
+# Input: API key
+api_key = st.text_input("🔑 Enter your OpenAI API Key", type="password")
 
-st.title("🪄 StudyGenie Ultra")
+# Input: your question
+question = st.text_area("💬 Ask anything related to your studies:")
 
-page = st.sidebar.radio(
-    "Choose Mode",
-    ["Doubt Solver", "Chat With StudyGenie", "Photo Doubt Solver", "Voice Doubt Solver", "Motivation Booster"]
-)
+# Process
+if st.button("✨ Generate Answer"):
+    if not api_key:
+        st.error("Please enter your API key!")
+    elif not question:
+        st.error("Please type a question!")
+    else:
+        try:
+            client = OpenAI(api_key=api_key)
 
-
-# ------------------------ DOUBT SOLVER ------------------------
-if page == "Doubt Solver":
-    st.header("📘 Ask Any Study Doubt")
-
-    question = st.text_area("What's confusing you bestie?")
-
-    if st.button("Solve My Doubt"):
-        if question.strip() == "":
-            st.warning("Babe write at least something 😭")
-        else:
-            response = client.responses.create(
-                model="gpt-4.1-mini",
-                input=f"Explain this doubt very clearly in simple words: {question}"
-            )
-            answer = response.output[0].content[0].text
-
-            st.success("✨ Your Answer:")
-            st.write(answer)
-
-
-# ------------------------ STUDY CHAT MODE ------------------------
-elif page == "Chat With StudyGenie":
-    st.header("💞 Chat With StudyGenie (Behaves like me 😭💕)")
-    
-    if "chat" not in st.session_state:
-        st.session_state.chat = []
-
-    user_msg = st.text_input("Talk to me bestie 💗")
-
-    if st.button("Send"):
-        if user_msg.strip():
-            st.session_state.chat.append(("You", user_msg))
-
-            response = client.responses.create(
-                model="gpt-4.1-mini",
-                input=f"""
-                You are StudyGenie, and your personality is:
-                - Gen Z vibe
-                - playful, supportive, goofy
-                - talks like a best friend
-                - short, sweet replies
-                User said: {user_msg}
-                """
-            )
-            bot = response.output[0].content[0].text
-            st.session_state.chat.append(("StudyGenie", bot))
-
-    for sender, msg in st.session_state.chat[::-1]:
-        st.write(f"**{sender}:** {msg}")
-
-
-# ------------------------ PHOTO DOUBT SOLVER ------------------------
-elif page == "Photo Doubt Solver":
-    st.header("📷 Upload a Photo of Your Question")
-
-    img = st.file_uploader("Upload Image", type=["jpg", "png", "jpeg"])
-
-    if img is not None:
-        image_bytes = img.read()
-        base64_img = base64.b64encode(image_bytes).decode()
-
-        if st.button("Solve"):
-            response = client.responses.create(
-                model="gpt-4.1-mini",
-                input=[
-                    {
-                        "role": "user",
-                        "content": [
-                            {"type": "input_text", "text": "Explain this question clearly."},
-                            {"type": "input_image", "image_url": f"data:image/jpeg;base64,{base64_img}"}
-                        ]
-                    }
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system",
+                     "content": "You are StudyGenie — explain concepts in simple, easy, clear student-friendly language."
+                    },
+                    {"role": "user", "content": question}
                 ]
             )
-            result = response.output[0].content[0].text
-            st.write(result)
 
+            generated_answer = response.choices[0].message.content
 
-# ------------------------ VOICE DOUBT SOLVER ------------------------
-elif page == "Voice Doubt Solver":
-    st.header("🎤 Speak Your Doubt")
+            st.subheader("✅ Your Answer:")
+            st.write(generated_answer)
 
-    audio = st.file_uploader("Upload voice (m4a / mp3)", type=["mp3", "m4a"])
-
-    if audio:
-        content = audio.read()
-        b64 = base64.b64encode(content).decode()
-
-        st.audio(content)
-
-        if st.button("Convert & Solve"):
-            trans = client.audio.transcriptions.create(
-                model="gpt-4o-transcribe",
-                file={"contents": content, "mime_type": "audio/m4a"},
-            )
-
-            text = trans.text
-
-            st.write("You said:", text)
-
-            response = client.responses.create(
-                model="gpt-4.1-mini",
-                input=f"Explain this doubt very clearly: {text}"
-            )
-
-            st.write(response.output[0].content[0].text)
-
-
-# ------------------------ MOTIVATION BOOSTER ------------------------
-elif page == "Motivation Booster":
-    st.header("💖 Motivation Booster")
-
-    if st.button("Cheer Me Up ✨"):
-        response = client.responses.create(
-            model="gpt-4.1-mini",
-            input="Give short, cute, Gen-Z style motivation for students."
-        )
-        quote = response.output[0].content[0].text
-        st.write("✨ Your Energy Shot:")
-        st.write(quote)
+        except Exception as e:
+            st.error(f"⚠️ Error: {str(e)}")
