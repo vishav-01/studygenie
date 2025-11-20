@@ -1,97 +1,99 @@
-
 import streamlit as st
-import datetime
 import random
 
-# ---------- APP SETTINGS ----------
 st.set_page_config(
-    page_title="StudyGenie - AI Study Assistant",
+    page_title="StudyGenie - AI Study Buddy",
     page_icon="📚",
     layout="centered"
 )
 
-# ---------- HEADER ----------
-st.title("📚 StudyGenie – Your AI Study Buddy")
-st.write("Smart. Fast. Reliable. Built to help students shine. ✨")
+st.title("📚 StudyGenie – Your AI Study Bestie ✨")
+st.write("Ask questions, make notes, summaries, timetables and get motivation!")
 
-# ---------- SIDEBAR ----------
-st.sidebar.header("🔧 Tools")
+# --- SIDEBAR ---
+st.sidebar.header("Tools")
 tool = st.sidebar.selectbox(
-    "Select Tool",
+    "Choose a feature",
     ["AI Doubt Solver", "Notes Generator", "Summary Maker", "Timetable Builder", "Motivation Booster"]
 )
 
-st.sidebar.write("Made with ❤️ by Vishav")
-
-# ---------- AI DOUBT SOLVER ----------
+# =======================
+# DOUBT SOLVER
+# =======================
 if tool == "AI Doubt Solver":
-    st.subheader("💡 Ask Any Question – Get Instant Answers")
-    question = st.text_area("Enter your question:")
+    st.subheader("💡 Ask any academic doubt")
+    question = st.text_area("Type your question here:")
+
     if st.button("Solve"):
         if question.strip():
-            st.success("Answer:")
-            st.write("""
-            This is where the AI answer will appear.  
-            You can integrate OpenAI API later to make it fully smart.  
-            For now, it's a demo answer used for submission.
-            """)
+            st.success("This is where the AI answer will appear. (Add API key later)")
         else:
-            st.warning("Please type your question first!")
+            st.warning("Please type a question first!")
 
-# ---------- NOTES GENERATOR ----------
+# =======================
+# NOTES GENERATOR
+# =======================
 elif tool == "Notes Generator":
-    st.subheader("📝 Generate Short, Clean Notes")
-    topic = st.text_input("Topic name:")
+    st.subheader("📝 Generate notes for any topic")
+    topic = st.text_input("Enter topic name:")
+
     if st.button("Generate Notes"):
-        if topic:
+        if topic.strip():
             st.success("Generated Notes:")
             st.write(f"""
-            ### {topic} – Key Notes
-            • Definition: This is a short and precise explanation of {topic}.  
-            • Importance: This topic is highly relevant for students.  
-            • Key Points:
-              - Point 1  
-              - Point 2  
-              - Point 3  
+### {topic}
+• Key point 1  
+• Key point 2  
+• Key point 3  
             """)
         else:
             st.warning("Enter a topic first!")
 
-# ---------- SUMMARY MAKER ----------
+# =======================
+# SUMMARY MAKER
+# =======================
 elif tool == "Summary Maker":
-    st.subheader("📄 Make a Short Summary")
-    text = st.text_area("Paste your long paragraph:")
+    st.subheader("📄 Make short summary")
+    text = st.text_area("Paste paragraph:")
+
     if st.button("Summarize"):
-        if text:
+        if text.strip():
             st.success("Summary:")
-            st.write("This is a short summary of your paragraph. (AI version can be added later.)")
+            st.write("Short summary appears here. (AI needed)")
         else:
-            st.warning("Paste some text!")
+            st.warning("Paste something first!")
 
-# ---------- TIMETABLE BUILDER ----------
+# =======================
+# TIMETABLE BUILDER
+# =======================
 elif tool == "Timetable Builder":
-    st.subheader("📅 Create Your Study Timetable")
+    st.subheader("📅 Build timetable")
     subjects = st.text_input("Enter subjects (comma separated):")
-    hours = st.slider("Total study hours per day", 1, 12, 4)
+    hours = st.slider("Study hours per day", 1, 12, 4)
 
-    if st.button("Build Timetable"):
-        if subjects:
-            subject_list = [s.strip() for s in subjects.split(",")]
-            st.success("Your Timetable:")
-            for sub in subject_list:
-                st.write(f"• {sub}: {round(hours/len(subject_list), 2)} hours")
+    if st.button("Create Timetable"):
+        if subjects.strip():
+            names = [s.strip() for s in subjects.split(",")]
+            time = round(hours / len(names), 2)
+
+            st.success("Your Timetable")
+            for s in names:
+                st.write(f"• {s}: {time} hrs")
         else:
             st.warning("Enter at least one subject!")
 
-# ---------- MOTIVATION BOOSTER ----------
+# =======================
+# MOTIVATION BOOSTER
+# =======================
 elif tool == "Motivation Booster":
-    st.subheader("🔥 Quick Motivation")
+    st.subheader("🔥 Motivation Booster")
     quotes = [
-        "You're closer than you think — keep going!",
-        "Small steps every day lead to big results.",
-        "Your future self is cheering for you.",
-        "Focus today — flex tomorrow.",
-        "One hour of study now saves ten hours later."
+        "Bestie you got this 😭🔥",
+        "One step today = massive glow tomorrow ✨",
+        "Your future self is cheering for you 💗",
+        "Focus now, flex forever 😤",
+        "You’re literally unstoppable, babe."
     ]
-    if st.button("Give Motivation"):
+
+    if st.button("Boost Me"):
         st.success(random.choice(quotes))
