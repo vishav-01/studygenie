@@ -1,158 +1,80 @@
+# app.py (diagnostic)
 import streamlit as st
-from openai import OpenAI
-import base64
-from PIL import Image
-import io
+import importlib
+import sys
+import traceback
 
-st.set_page_config(
-    page_title="StudyGenie Ultra",
-    page_icon="🪄",
-)
+st.set_page_config(page_title="StudyGenie Debug", layout="centered")
+st.title("StudyGenie — Debug Mode 🔎")
 
-client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+# 1) Show whether secret exists (we DO NOT print the secret)
+has_secret = "OPENAI_API_KEY" in st.secrets
+st.write("OPENAI_API_KEY present in Secrets:", has_secret)
 
-# ------------------------ UI DESIGN ------------------------
-st.markdown("""
-    <style>
-        .stButton button {
-            background-color: #7b52ff;
-            color: white;
-            padding: 0.6rem 1.5rem;
-            border-radius: 10px;
-            font-size: 1.1rem;
-        }
-        .stTextInput input, .stTextArea textarea {
-            border-radius: 10px;
-            font-size: 1rem;
-        }
-    </style>
-""", unsafe_allow_html=True)
+# 2) Show installed openai package version (if any)
+try:
+    import openai
+    st.write("openai module version:", openai.__version__)
+except Exception as e:
+    st.write("openai module not installed or import failed:", str(e))
 
-st.title("🪄 StudyGenie Ultra")
+# 3) Show python version
+st.write("Python version:", sys.version.splitlines()[0])
 
-page = st.sidebar.radio(
-    "Choose Mode",
-    ["Doubt Solver", "Chat With StudyGenie", "Photo Doubt Solver", "Voice Doubt Solver", "Motivation Booster"]
-)
+# 4) Quick test: try 2 different client patterns (new SDK and old top-level). 
+st.markdown("---")
+st.header("Test API call")
 
+if not has_secret:
+    st.warning("Add OPENAI_API_KEY to Streamlit Secrets (Settings → Secrets) and redeploy.")
+else:
+    st.info("Trying to call the API. Please wait (may take a few seconds).")
 
-# ------------------------ DOUBT SOLVER ------------------------
-if page == "Doubt Solver":
-    st.header("📘 Ask Any Study Doubt")
+    # attempt 1: new SDK pattern
+    try:
+        from openai import OpenAI
+        client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+        st.write("Using `from openai import OpenAI` pattern — attempting responses.create...")
+        try:
+            resp = client.responses.create(model="gpt-4o-mini", input="Say hi in 5 words.")
+            # try to safely extract text
+            text = None
+            try:
+                text = resp.output[0].content[0].text
+            except Exception:
+                # fallback: stringify
+                text = str(resp)
+            st.success("New SDK call succeeded. Response preview:")
+            st.write(text)
+        except Exception as e:
+            st.error("New SDK call FAILED. See stacktrace below.")
+            st.text(traceback.format_exc())
+    except Exception as e:
+        st.write("New SDK import pattern failed:", str(e))
+        st.text(traceback.format_exc())
 
-    question = st.text_area("What's confusing you bestie?")
+    st.markdown("---")
 
-    if st.button("Solve My Doubt"):
-        if question.strip() == "":
-            st.warning("Babe write at least something 😭")
-        else:
-            response = client.responses.create(
-                model="gpt-4.1-mini",
-                input=f"Explain this doubt very clearly in simple words: {question}"
+    # attempt 2: classic openai top-level client (older pattern)
+    try:
+        import openai as oai
+        oai.api_key = st.secrets["OPENAI_API_KEY"]
+        st.write("Using `import openai` pattern — attempting ChatCompletion.create...")
+        try:
+            resp2 = oai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=[{"role":"user","content":"Summarize 'photosynthesis' in one line."}],
+                max_tokens=60
             )
-            answer = response.output[0].content[0].text
+            text2 = resp2["choices"][0]["message"]["content"]
+            st.success("Old-style ChatCompletion succeeded. Preview:")
+            st.write(text2)
+        except Exception as e:
+            st.error("Old-style ChatCompletion FAILED. See stacktrace below.")
+            st.text(traceback.format_exc())
+    except Exception as e:
+        st.write("Old openai import failed:", str(e))
+        st.text(traceback.format_exc())
 
-            st.success("✨ Your Answer:")
-            st.write(answer)
-
-
-# ------------------------ STUDY CHAT MODE ------------------------
-elif page == "Chat With StudyGenie":
-    st.header("💞 Chat With StudyGenie (Behaves like me 😭💕)")
-    
-    if "chat" not in st.session_state:
-        st.session_state.chat = []
-
-    user_msg = st.text_input("Talk to me bestie 💗")
-
-    if st.button("Send"):
-        if user_msg.strip():
-            st.session_state.chat.append(("You", user_msg))
-
-            response = client.responses.create(
-                model="gpt-4.1-mini",
-                input=f"""
-                You are StudyGenie, and your personality is:
-                - Gen Z vibe
-                - playful, supportive, goofy
-                - talks like a best friend
-                - short, sweet replies
-                User said: {user_msg}
-                """
-            )
-            bot = response.output[0].content[0].text
-            st.session_state.chat.append(("StudyGenie", bot))
-
-    for sender, msg in st.session_state.chat[::-1]:
-        st.write(f"**{sender}:** {msg}")
-
-
-# ------------------------ PHOTO DOUBT SOLVER ------------------------
-elif page == "Photo Doubt Solver":
-    st.header("📷 Upload a Photo of Your Question")
-
-    img = st.file_uploader("Upload Image", type=["jpg", "png", "jpeg"])
-
-    if img is not None:
-        image_bytes = img.read()
-        base64_img = base64.b64encode(image_bytes).decode()
-
-        if st.button("Solve"):
-            response = client.responses.create(
-                model="gpt-4.1-mini",
-                input=[
-                    {
-                        "role": "user",
-                        "content": [
-                            {"type": "input_text", "text": "Explain this question clearly."},
-                            {"type": "input_image", "image_url": f"data:image/jpeg;base64,{base64_img}"}
-                        ]
-                    }
-                ]
-            )
-            result = response.output[0].content[0].text
-            st.write(result)
-
-
-# ------------------------ VOICE DOUBT SOLVER ------------------------
-elif page == "Voice Doubt Solver":
-    st.header("🎤 Speak Your Doubt")
-
-    audio = st.file_uploader("Upload voice (m4a / mp3)", type=["mp3", "m4a"])
-
-    if audio:
-        content = audio.read()
-        b64 = base64.b64encode(content).decode()
-
-        st.audio(content)
-
-        if st.button("Convert & Solve"):
-            trans = client.audio.transcriptions.create(
-                model="gpt-4o-transcribe",
-                file={"contents": content, "mime_type": "audio/m4a"},
-            )
-
-            text = trans.text
-
-            st.write("You said:", text)
-
-            response = client.responses.create(
-                model="gpt-4.1-mini",
-                input=f"Explain this doubt very clearly: {text}"
-            )
-
-            st.write(response.output[0].content[0].text)
-
-
-# ------------------------ MOTIVATION BOOSTER ------------------------
-elif page == "Motivation Booster":
-    st.header("💖 Motivation Booster")
-
-    if st.button("Cheer Me Up ✨"):
-        response = client.responses.create(
-            model="gpt-4.1-mini",
-            input="Give short, cute, Gen-Z style motivation for students."
-        )
-        quote = response.output[0].content[0].text
-        st.write("✨ Your Energy Shot:")
-        st.write(quote)
+st.markdown("---")
+st.write("After you see which pattern works, I will give you the final production code. If both fail, paste the logs here or screenshot them and I will debug further.")
