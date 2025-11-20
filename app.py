@@ -1,5 +1,7 @@
+import openai
 import streamlit as st
-import random
+
+openai.api_key = st.secrets["OPENAI_API_KEY"]
 
 st.set_page_config(
     page_title="StudyGenie - AI Study Buddy",
