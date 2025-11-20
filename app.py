@@ -97,3 +97,23 @@ elif tool == "Motivation Booster":
 
     if st.button("Boost Me"):
         st.success(random.choice(quotes))
+
+def get_ai_answer(question):
+    import openai
+    openai.api_key = st.secrets["OPENAI_API_KEY"]
+
+    response = openai.ChatCompletion.create(
+        model="gpt-4o-mini",
+        messages=[
+            {
+                "role": "system",
+                "content": "You are StudyGenie, a cute Gen-Z bestie study helper who talks lovingly and explains concepts clearly."
+            },
+            {
+                "role": "user",
+                "content": question
+            }
+        ]
+    )
+
+    return response["choices"][0]["message"]["content"]
