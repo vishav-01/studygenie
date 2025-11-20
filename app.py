@@ -1,6 +1,5 @@
 import streamlit as st
-from openai 
-import OpenAI
+from openai import OpenAI
 import base64
 from PIL import Image
 import io
@@ -157,4 +156,3 @@ elif page == "Motivation Booster":
         quote = response.output[0].content[0].text
         st.write("✨ Your Energy Shot:")
         st.write(quote)
-
