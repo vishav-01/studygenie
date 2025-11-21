@@ -1,77 +1,40 @@
 import streamlit as st
 import requests
 import json
+import random
 
-# -------------------------
-# 💗 UI DESIGN (Gen Z Gradient)
-# -------------------------
+# -------------------------------------
+# PAGE + BACKGROUND
+# -------------------------------------
 st.set_page_config(page_title="StudyGenie AI", layout="centered")
 
-st.markdown("""
+bg_css = """
 <style>
-
-body {
-    background: linear-gradient(180deg, #3A0CA3, #7209B7, #F72585);
-    font-family: 'Poppins', sans-serif;
+html, body, [data-testid="stAppViewContainer"] {
+    background: linear-gradient(180deg, #3a0ca3, #7209b7, #f72585);
+    background-size: cover !important;
+    background-attachment: fixed !important;
+    font-family: "Poppins", sans-serif;
 }
-
-.stTextInput > div > div > input {
-    border-radius: 12px;
-    border: 2px solid white;
-}
-
-.chat-bubble {
-    padding: 16px;
-    margin: 12px 0;
-    border-radius: 18px;
-    animation: pop 0.3s ease;
-}
-
-.user {
-    background: rgba(255, 255, 255, 0.2);
+.section-box {
+    background: rgba(255, 255, 255, 0.15);
+    padding: 20px;
+    border-radius: 16px;
+    backdrop-filter: blur(8px);
     color: white;
+    margin-top: 20px;
 }
-
-.ai {
-    background: rgba(0, 0, 0, 0.3);
-    color: #ffe8fd;
-}
-
-@keyframes pop {
-  0% {transform: scale(0.8);}
-  100% {transform: scale(1);}
-}
-
 </style>
-""", unsafe_allow_html=True)
+"""
+st.markdown(bg_css, unsafe_allow_html=True)
 
-st.markdown("<h1 style='text-align:center; color:white;'>✨ StudyGenie AI 2.0</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align:center; color:#ffe6ff;'>Your smart bestie for solving every doubt 😭💗</p>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align:center;color:white;'>✨ StudyGenie – Your AI Study Bestie 💕</h1>", unsafe_allow_html=True)
+st.markdown("<p style='text-align:center;color:#ffe6ff;'>Ask, study, glow-up ✨</p>", unsafe_allow_html=True)
 
-# -------------------------
-# 💗 CHAT MEMORY
-# -------------------------
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-
-# -------------------------
-# 💗 DISPLAY CHAT HISTORY
-# -------------------------
-for msg in st.session_state.messages:
-    role = "user" if msg["role"] == "user" else "ai"
-    st.markdown(f"<div class='chat-bubble {role}'>{msg['content']}</div>", unsafe_allow_html=True)
-
-# -------------------------
-# 💗 USER INPUT
-# -------------------------
-user_input = st.text_input("Ask anything bestie 💕:", "")
-
-# -------------------------
-# 💗 OPENAI REQUEST USING PURE REQUESTS (NO import openai)
-# -------------------------
-def call_openai_api(prompt):
-    url = "https://api.openai.com/v1/chat/completions"   # gpt-4o-mini, gpt-5, etc.
-
+# -------------------------------------
+# OPENAI FUNCTION
+# -------------------------------------
+def ask_openai(prompt):
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {st.secrets['OPENAI_API_KEY']}"
@@ -79,28 +42,144 @@ def call_openai_api(prompt):
 
     data = {
         "model": "gpt-4o-mini",
-        "messages": [
-            {"role": "system", "content": "You are StudyGenie, a friendly, smart doubt solver."},
-            {"role": "user", "content": prompt}
-        ]
+        "messages": [{"role": "user", "content": prompt}]
     }
 
-    response = requests.post(url, headers=headers, data=json.dumps(data))
+    try:
+        res = requests.post(
+            "https://api.openai.com/v1/chat/completions",
+            headers=headers,
+            data=json.dumps(data),
+            timeout=25
+        )
+        return res.json()["choices"][0]["message"]["content"]
 
-    if response.status_code != 200:
-        return f"❌ Error: {response.text}"
+    except Exception as e:
+        return "❌ Error contacting AI: " + str(e)
 
-    answer = response.json()["choices"][0]["message"]["content"]
-    return answer
+# -------------------------------------
+# SIDEBAR TOOLS
+# -------------------------------------
+tool = st.sidebar.selectbox(
+    "Choose a Feature",
+    ["AI Doubt Solver", "Notes Generator", "Summary Maker",
+     "Timetable Builder", "Motivation Booster"]
+)
 
-# -------------------------
-# 💗 PROCESS USER MESSAGE
-# -------------------------
-if user_input:
-    st.session_state.messages.append({"role": "user", "content": user_input})
+# =====================================
+# AI DOUBT SOLVER
+# =====================================
+if tool == "AI Doubt Solver":
+    st.markdown("<div class='section-box'>", unsafe_allow_html=True)
+    st.subheader("💡 Ask any doubt bestie")
 
-    with st.spinner("Thinking for you bestie… 💕"):
-        reply = call_openai_api(user_input)
+    q = st.text_area("Write your doubt:")
+    if st.button("Solve Doubt"):
+        if q.strip():
+            with st.spinner("Thinking… 💞"):
+                ans = ask_openai(q)
+            st.success("✨ Your Answer:")
+            st.write(ans)
+        else:
+            st.warning("Write something first bestie 😭")
+    st.markdown("</div>", unsafe_allow_html=True)
 
-    st.session_state.messages.append({"role": "ai", "content": reply})
-    st.rerun()
+# =====================================
+# NOTES GENERATOR
+# =====================================
+elif tool == "Notes Generator":
+    st.markdown("<div class='section-box'>", unsafe_allow_html=True)
+    st.subheader("📝 Generate Notes")
+
+    topic = st.text_input("Topic Name:")
+    if st.button("Generate Notes"):
+        if topic.strip():
+            prompt = f"Create simple, clean notes for the topic: {topic}."
+            ans = ask_openai(prompt)
+            st.success("📝 Notes:")
+            st.write(ans)
+        else:
+            st.warning("Enter a topic first!")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+# =====================================
+# SUMMARY MAKER
+# =====================================
+elif tool == "Summary Maker":
+    st.markdown("<div class='section-box'>", unsafe_allow_html=True)
+    st.subheader("🧾 Make Summary")
+
+    text = st.text_area("Paste text:")
+    if st.button("Summarize"):
+        if text.strip():
+            ans = ask_openai(f"Summarize this: {text}")
+            st.success("✨ Summary:")
+            st.write(ans)
+        else:
+            st.warning("Paste something first!")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+# =====================================
+# TIMETABLE BUILDER
+# =====================================
+elif tool == "Timetable Builder":
+    st.markdown("<div class='section-box'>", unsafe_allow_html=True)
+    st.subheader("📅 Study Timetable")
+
+    subs = st.text_input("Subjects (comma separated):")
+    hours = st.slider("Hours per day", 1, 12, 4)
+
+    if st.button("Build Timetable"):
+        if subs.strip():
+            s_list = [s.strip() for s in subs.split(",")]
+            time_each = round(hours / len(s_list), 2)
+
+            st.success("✨ Your Timetable")
+            for s in s_list:
+                st.write(f"📘 {s}: **{time_each} hours**")
+
+        else:
+            st.warning("Add subjects first!")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+# =====================================
+# MOTIVATION BOOSTER
+# =====================================
+elif tool == "Motivation Booster":
+    st.markdown("<div class='section-box'>", unsafe_allow_html=True)
+    st.subheader("🔥 Boost Your Mood Bestie")
+
+    quotes = [
+        "Bestie you're literally ICONIC 😭🔥",
+        "You will glow so hard people need sunglasses 😎💕",
+        "Your future self is smiling rn 😭✨",
+        "Trust me you’re built different.",
+        "Focus now, flex forever 😤",
+        "One study session today = massive win tomorrow 💗",
+        "Babe you're not behind, you're loading 💞",
+        "You’re smart AND hot, unbeatable combo 😭🔥",
+        "Success is already flirting with you 😏💗",
+        "Glow-up in progress… stay tuned ✨",
+        "You’re doing so well even when you feel lost 💕",
+        "Your dream uni is WAITING FOR YOU 😭🔥",
+        "You're the main character today and everyday.",
+        "You’ll look back and thank yourself for this.",
+        "Study hard → K-drama life unlocked 💞",
+        "You're energy is rare… protect it ✨",
+        "Universe is literally rigged in your favour.",
+        "You’re not tired, you're legendary.",
+        "Future millionaire loading… 💸",
+        "Trust the grind bestie, it loves you 😭",
+        "Even your mistakes are cute 😭💕",
+        "You’ve survived 100% of your bad days.",
+        "You’re too powerful to quit now.",
+        "Your potential is insane omg.",
+        "Believe in yourself like I believe in you 💗",
+        "Just one more chapter… future flex awaits 😎",
+        "Studygenie loves you and hyping you ALWAYS ✨"
+    ]
+
+    if st.button("Boost Me ✨"):
+        st.success(random.choice(quotes))
+
+    st.markdown("</div>", unsafe_allow_html=True)
