@@ -1,162 +1,106 @@
 import streamlit as st
-import openai
-import random
+import requests
+import json
 
-# ---------------- PAGE CONFIG ----------------
-st.set_page_config(
-    page_title="StudyGenie – AI Bestie",
-    page_icon="✨",
-    layout="centered"
-)
+# -------------------------
+# 💗 UI DESIGN (Gen Z Gradient)
+# -------------------------
+st.set_page_config(page_title="StudyGenie AI", layout="centered")
 
-# ---------------- CSS (Visible Gradient, No Bugs) ----------------
 st.markdown("""
-    <style>
-    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
+<style>
 
-    * { font-family: 'Poppins', sans-serif !important; }
+body {
+    background: linear-gradient(180deg, #3A0CA3, #7209B7, #F72585);
+    font-family: 'Poppins', sans-serif;
+}
 
-    body {
-        background: linear-gradient(135deg, #6C63FF, #A35BFF, #FF69B4);
-        background-size: cover;
-    }
+.stTextInput > div > div > input {
+    border-radius: 12px;
+    border: 2px solid white;
+}
 
-    .glass-box {
-        background: rgba(255,255,255,0.15);
-        padding: 20px;
-        border-radius: 18px;
-        backdrop-filter: blur(14px);
-        border: 1px solid rgba(255,255,255,0.25);
-        color: white;
-        margin-top: 10px;
-    }
+.chat-bubble {
+    padding: 16px;
+    margin: 12px 0;
+    border-radius: 18px;
+    animation: pop 0.3s ease;
+}
 
-    textarea, input {
-        background: rgba(255,255,255,0.25) !important;
-        color: white !important;
-    }
+.user {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+}
 
-    .stButton>button {
-        background: #ffffff33;
-        border-radius: 12px;
-        border: 1px solid #ffffff77;
-        color: white;
-        font-weight: 600;
-        padding: 8px 20px;
-    }
-    </style>
+.ai {
+    background: rgba(0, 0, 0, 0.3);
+    color: #ffe8fd;
+}
+
+@keyframes pop {
+  0% {transform: scale(0.8);}
+  100% {transform: scale(1);}
+}
+
+</style>
 """, unsafe_allow_html=True)
 
-# ---------------- TITLE ----------------
-st.markdown("<h1 style='text-align:center; color:white;'>📚 StudyGenie – Your AI Bestie 💗</h1>", unsafe_allow_html=True)
-st.write("<p style='text-align:center; color:white;'>Ask doubts, make notes, summaries, timetables – anything bestie 😭✨</p>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align:center; color:white;'>✨ StudyGenie AI 2.0</h1>", unsafe_allow_html=True)
+st.markdown("<p style='text-align:center; color:#ffe6ff;'>Your smart bestie for solving every doubt 😭💗</p>", unsafe_allow_html=True)
 
-# ---------------- OPENAI API KEY ----------------
-with st.sidebar:
-    st.header("🔑 API Settings")
-    api_key = st.text_input("Enter OpenAI API Key:", type="password")
+# -------------------------
+# 💗 CHAT MEMORY
+# -------------------------
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
-# Setup OpenAI key safely
-if api_key:
-    openai.api_key = api_key
+# -------------------------
+# 💗 DISPLAY CHAT HISTORY
+# -------------------------
+for msg in st.session_state.messages:
+    role = "user" if msg["role"] == "user" else "ai"
+    st.markdown(f"<div class='chat-bubble {role}'>{msg['content']}</div>", unsafe_allow_html=True)
 
-# ---------------- TOOLS SIDEBAR ----------------
-st.sidebar.header("✨ Tools")
-tool = st.sidebar.selectbox(
-    "Choose a feature",
-    ["AI Doubt Solver", "Notes Generator", "Summary Maker", "Timetable Builder", "Motivation Booster"]
-)
+# -------------------------
+# 💗 USER INPUT
+# -------------------------
+user_input = st.text_input("Ask anything bestie 💕:", "")
 
-# ---------------- OPENAI FUNCTION ----------------
-def ask_openai(question):
-    try:
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",   # SAFE MODEL for Streamlit Cloud
-            messages=[{"role": "user", "content": question}]
-        )
-        return response["choices"][0]["message"]["content"]
-    except Exception as e:
-        return f"Error bestie 😭: {e}"
+# -------------------------
+# 💗 OPENAI REQUEST USING PURE REQUESTS (NO import openai)
+# -------------------------
+def call_openai_api(prompt):
+    url = "https://api.openai.com/v1/chat/completions"   # gpt-4o-mini, gpt-5, etc.
 
-# ---------------- FEATURES ----------------
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {st.secrets['OPENAI_API_KEY']}"
+    }
 
-# DOUBT SOLVER
-if tool == "AI Doubt Solver":
-    st.markdown("<div class='glass-box'>💡 Ask any doubt</div>", unsafe_allow_html=True)
-    q = st.text_area("Type your question here:")
+    data = {
+        "model": "gpt-4o-mini",
+        "messages": [
+            {"role": "system", "content": "You are StudyGenie, a friendly, smart doubt solver."},
+            {"role": "user", "content": prompt}
+        ]
+    }
 
-    if st.button("Solve ✨"):
-        if not api_key:
-            st.error("Enter your OpenAI API key bestie 😭")
-        elif q.strip():
-            st.success("✨ Answer:")
-            st.write(ask_openai(q))
-        else:
-            st.warning("Type something first babe 😭")
+    response = requests.post(url, headers=headers, data=json.dumps(data))
 
+    if response.status_code != 200:
+        return f"❌ Error: {response.text}"
 
-# NOTES GENERATOR
-elif tool == "Notes Generator":
-    st.markdown("<div class='glass-box'>📝 Notes Generator</div>", unsafe_allow_html=True)
-    topic = st.text_input("Enter topic:")
+    answer = response.json()["choices"][0]["message"]["content"]
+    return answer
 
-    if st.button("Generate Notes"):
-        if not api_key:
-            st.error("Enter your OpenAI API key bestie 😭")
-        elif topic.strip():
-            st.success("✨ Notes:")
-            st.write(ask_openai(f"Make student-friendly notes on {topic}"))
-        else:
-            st.warning("Type a topic first!")
+# -------------------------
+# 💗 PROCESS USER MESSAGE
+# -------------------------
+if user_input:
+    st.session_state.messages.append({"role": "user", "content": user_input})
 
+    with st.spinner("Thinking for you bestie… 💕"):
+        reply = call_openai_api(user_input)
 
-# SUMMARY MAKER
-elif tool == "Summary Maker":
-    st.markdown("<div class='glass-box'>📄 Summary Maker</div>", unsafe_allow_html=True)
-    text = st.text_area("Paste a paragraph:")
-
-    if st.button("Summarize ✂️"):
-        if not api_key:
-            st.error("Enter API key bestie 😭")
-        elif text.strip():
-            st.success("✨ Summary:")
-            st.write(ask_openai(f"Summarize this clearly:\n{text}"))
-        else:
-            st.warning("Paste something first!")
-
-
-# TIMETABLE BUILDER
-elif tool == "Timetable Builder":
-    st.markdown("<div class='glass-box'>📅 Timetable Builder</div>", unsafe_allow_html=True)
-    subjects = st.text_input("Subjects (comma separated):")
-    hours = st.slider("Study hours/day", 1, 12, 4)
-
-    if st.button("Create Timetable"):
-        if subjects.strip():
-            names = [s.strip() for s in subjects.split(",")]
-            time = round(hours / len(names), 2)
-            st.success("✨ Your Timetable")
-            for s in names:
-                st.write(f"• **{s}:** {time} hrs")
-        else:
-            st.warning("Enter subjects first!")
-
-
-# MOTIVATION BOOSTER
-elif tool == "Motivation Booster":
-    st.markdown("<div class='glass-box'>🔥 Motivation Booster</div>", unsafe_allow_html=True)
-
-    quotes = [
-        "Bestie you got this 😭🔥",
-        "Study now, glow later ✨",
-        "Your success arc is beginning 💗",
-        "Focus now, flex forever 😤",
-        "You're unstoppable babe 💜",
-        "One year of discipline = new life.",
-        "Your future self is proud rn 😭",
-        "Main character vibes only ⭐"
-    ]
-
-    import random
-    if st.button("Boost Me ✨"):
-        st.success(random.choice(quotes))
+    st.session_state.messages.append({"role": "ai", "content": reply})
+    st.rerun()
