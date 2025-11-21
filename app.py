@@ -1,6 +1,13 @@
 import streamlit as st
 import random
 import time
+import requests
+
+def google_brain(query):
+    url = f"https://api.duckduckgo.com/?q={query}&format=json&no_html=1"
+    data = requests.get(url).json()
+    return data.get("Abstract", "No direct answer found.")
+
 
 st.set_page_config(
     page_title="StudyGenie – Offline Mode",
@@ -25,8 +32,8 @@ body {
 """, unsafe_allow_html=True)
 
 # ---------------- MAIN TITLE ----------------
-st.title("✨ StudyGenie – Offline Smart Study Assistant 💗")
-st.write("Works without OpenAI, without API keys, and fully offline ⚡")
+st.title("✨ StudyGenie –  Smart Study bestie 💗")
+st.write("⚡")
 
 # ---------------- SIDEBAR ----------------
 st.sidebar.header("Tools")
