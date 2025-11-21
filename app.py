@@ -1,187 +1,165 @@
 import streamlit as st
 import random
+import time
 
 st.set_page_config(
-    page_title="StudyGenie – Your AI Bestie",
+    page_title="StudyGenie – Offline Mode",
     page_icon="✨",
     layout="centered"
 )
 
-# -------------------------------
-# CUSTOM CSS FOR AESTHETIC VIBE
-# -------------------------------
+# ---------------- CUSTOM UI STYLE ----------------
 st.markdown("""
 <style>
 body {
-    background: linear-gradient(135deg, #8ec5fc 0%, #e0c3fc 100%);
+    background: linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%);
     font-family: 'Poppins', sans-serif;
-}
-h1, h2, h3, h4 {
-    color: white;
-    text-shadow: 0px 0px 10px rgba(255,255,255,0.7);
 }
 .block-container {
     background: rgba(255,255,255,0.22);
-    padding: 2.5rem;
+    padding: 2rem;
     border-radius: 20px;
     backdrop-filter: blur(20px);
-    box-shadow: 0 8px 30px rgba(0,0,0,0.1);
-}
-button[kind="primary"] {
-    background: linear-gradient(90deg, #d53369 0%, #daae51 100%) !important;
-    color: white !important;
-    border-radius: 10px !important;
-    padding: 0.6rem 1.2rem !important;
-    font-weight: 600 !important;
 }
 </style>
 """, unsafe_allow_html=True)
 
-# ---------------------------------
-# OPENAI CLIENT
-# --------------------------------- 
+# ---------------- MAIN TITLE ----------------
+st.title("✨ StudyGenie – Offline Smart Study Assistant 💗")
+st.write("Works without OpenAI, without API keys, and fully offline ⚡")
 
-# ---------------------------------
-# MAIN TITLE
-# ---------------------------------
-st.title("✨ StudyGenie – Your K-Drama Style AI Bestie 💗")
-st.write("Ask doubts, generate notes, summaries, timetables… or get a huge motivation push 😭🔥")
-
-# Sidebar
-st.sidebar.header("✨ Tools Menu")
+# ---------------- SIDEBAR ----------------
+st.sidebar.header("Tools")
 tool = st.sidebar.selectbox(
     "Choose a feature",
-    ["AI Doubt Solver", "Notes Generator", "Summary Maker", "Timetable Builder", "Motivation Booster"]
+    ["AI Doubt Solver (Offline)", "Notes Generator", "Summary Maker", "Timetable Builder", "Motivation Booster"]
 )
 
-# ---------------------------------
-# AI DOUBT SOLVER (FULLY WORKING)
-# ---------------------------------
-if tool == "AI Doubt Solver":
-    st.subheader("💡 Ask me anything bestie, I got you:")
-    question = st.text_area("Write your doubt here:")
+# ===========================
+# 1. OFFLINE DOUBT SOLVER
+# ===========================
+if tool == "AI Doubt Solver (Offline)":
+    st.subheader("💡 Ask your doubt (offline version)")
 
-    if st.button("Solve My Doubt"):
+    question = st.text_area("Your question:")
+
+    if st.button("Solve"):
         if question.strip():
 
-            with st.spinner("Thinking for you babe… 💭✨"):
-                response = client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=[
-                        {"role": "system", "content": "You are StudyGenie, a friendly smart AI study partner."},
-                        {"role": "user", "content": question}
-                    ]
-                )
+            st.info("Thinking… (offline logic) ✨")
+            time.sleep(1.2)
 
-            st.success("Here you go bestie 💗👇")
-            st.write(response.choices[0].message["content"])
+            # Offline rule-based responses
+            if "what is" in question.lower():
+                st.success("This looks like a definition question. Explain it like this:")
+                st.write("👉 A simple definition:\n\n• Start with meaning\n• Add example\n• End with importance")
+
+            elif "why" in question.lower():
+                st.success("Here's how to answer WHY questions:")
+                st.write("👉 Explain the cause, effect, and real-life relevance.")
+
+            elif "how" in question.lower():
+                st.success("Here's how to answer HOW questions:")
+                st.write("👉 Explain steps, process, and result.")
+
+            else:
+                st.success("General Answer Format:")
+                st.write("👉 Intro → Explanation → Example → Conclusion")
 
         else:
-            st.warning("Write your question first bestie 😭")
+            st.warning("Ask something first!")
 
-# ---------------------------------
-# NOTES GENERATOR
-# ---------------------------------
+# ===========================
+# 2. NOTES GENERATOR (OFFLINE)
+# ===========================
 elif tool == "Notes Generator":
-    st.subheader("📝 Generate aesthetic notes")
+    st.subheader("📝 Generate notes (offline version)")
     topic = st.text_input("Topic name:")
 
     if st.button("Generate Notes"):
         if topic.strip():
 
-            with st.spinner("Writing cute notes for you 💗📚…"):
-                response = client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=[
-                        {"role": "system", "content": "Create short, clear, aesthetic study notes."},
-                        {"role": "user", "content": f"Make notes on {topic}"}
-                    ]
-                )
-            st.success("Your Notes ✨")
-            st.write(response.choices[0].message["content"])
+            st.success("✨ Your Notes:")
+            st.write(f"""
+### {topic.title()}
+• Meaning  
+• Key features  
+• Examples  
+• Importance  
+• Real-world application  
+""")
 
         else:
-            st.warning("Topic daal do bestie 😭")
+            st.warning("Enter a topic first!")
 
-# ---------------------------------
-# SUMMARY MAKER
-# ---------------------------------
+# ===========================
+# 3. SUMMARY MAKER (OFFLINE)
+# ===========================
 elif tool == "Summary Maker":
-    st.subheader("📄 Summaries in seconds")
-    text = st.text_area("Paste the paragraph:")
+    st.subheader("📄 Offline Summary Maker")
+    text = st.text_area("Paste paragraph:")
 
     if st.button("Summarize"):
         if text.strip():
 
-            with st.spinner("Summarizing for you 💞"):
-                response = client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=[
-                        {"role": "system", "content": "Summarize text in simple short points."},
-                        {"role": "user", "content": text}
-                    ]
-                )
-
-            st.success("Your Summary ✨")
-            st.write(response.choices[0].message["content"])
+            st.success("✨ Summary:")
+            st.write("• Main idea\n• 2–3 key points\n• Final conclusion")
 
         else:
-            st.warning("Paste something bestie 🥺")
+            st.warning("Paste something first!")
 
-# ---------------------------------
-# TIMETABLE BUILDER
-# ---------------------------------
+# ===========================
+# 4. TIMETABLE BUILDER
+# ===========================
 elif tool == "Timetable Builder":
-    st.subheader("📅 Build your aesthetic timetable")
-    subjects = st.text_input("Enter subjects (comma separated):")
+    st.subheader("📅 Build your timetable")
+    subjects = st.text_input("Subjects (comma separated):")
     hours = st.slider("Daily Study Hours", 1, 12, 4)
 
     if st.button("Create Timetable"):
         if subjects.strip():
-            list_subjects = [i.strip() for i in subjects.split(",")]
-            time_each = round(hours / len(list_subjects), 2)
+            subs = [s.strip() for s in subjects.split(",")]
+            per = round(hours / len(subs), 2)
 
-            st.success("Your Timetable 💗")
-            for s in list_subjects:
-                st.write(f"✨ **{s}** – {time_each} hrs")
+            st.success("✨ Your Timetable")
+            for s in subs:
+                st.write(f"• {s}: {per} hrs")
 
         else:
-            st.warning("Add at least one subject 😭")
+            st.warning("Enter subjects first!")
 
-# ---------------------------------
-# MOTIVATION BOOSTER
-# ---------------------------------
+# ===========================
+# 5. MOTIVATION BOOSTER (BIG LIST)
+# ===========================
 elif tool == "Motivation Booster":
-    st.subheader("🔥 Ready for giga-level motivation?")
-    
+    st.subheader("🔥 Motivation Booster")
+
     quotes = [
-        "Bestie you’re literally the future millionaire of your family 💗🔥",
-        "Korea is waiting for you babe—keep moving 😭✨",
-        "Your glow-up is uploading… do NOT cancel the download 😤🔥",
-        "Study now, flex forever. That’s the vibe 💅✨",
-        "You have no idea how powerful you actually are 🌟",
-        "Every minute you study adds +1 charm to your aura 😭💗",
-        "You’re not tired, you’re leveling up 🔮✨",
-        "Your dream life is not far—it’s IN PROGRESS 🔥",
-        "The world is NOT ready for your next version 😭💞",
-        "One day, you’ll be living the life you prayed for.",
-        "Focus now, because your future is screaming your name 🔥✨",
-        "Nobody has your mind, your vibe, your ambition 💗",
-        "You are not average. Stop acting like it 😤🔥",
-        "Small steps → Big changes. Keep going bestie ✨",
-        "You’re the main character. Everyone else is extra 😎",
-        "Your future self is literally cheering rn 😭💗",
-        "You are meant for greatness—own it 🦋",
-        "Discipline looks sexy on you bestie 🔥",
-        "Your success arc is about to EXPLODE 💥",
-        "Babe… you’re unstoppable. Trust me 💗",
-        "Every time you choose discipline, you win.",
-        "Don’t stop. Your best chapter isn’t written yet ✨",
-        "Glow-up incoming. Don’t blink 😤🔥",
-        "You’re building a life people dream about 💞",
-        "One hour today → One dream tomorrow 💙",
-        "Bestie your potential is insane. USE IT 🔥",
-        "Imagine quitting now? Couldn’t be you 😭🔥",
+        "You’re literally unstoppable bestie 🔥",
+        "Your glow-up is coming. Don’t stop now ✨",
+        "Study now, flex in Korea later 😭🔥",
+        "Your future self is proud of you 💞",
+        "Every day you’re getting stronger 🌟",
+        "You have no idea how powerful you are 😤",
+        "Discipline > Motivation. Stay locked in 🔥",
+        "Your dreams are valid. Keep going 💗",
+        "Small progress is still progress 🌸",
+        "Your success arc is loading… 99% ✨",
+        "Bestie your potential scares people 😭🔥",
+        "Imagine quitting now? No way 🤨🔥",
+        "You're building a future people dream of 💫",
+        "Your goals aren’t random — they're your calling 💙",
+        "You’re one chapter away from your breakthrough 📘",
+        "Slowly, quietly… you’re becoming the person you wanted 💗",
+        "The universe is aligning for you ✨",
+        "The effort you put today will save your future self 😭🔥",
+        "You’re not behind. You’re preparing 💞",
+        "Bestie… you’re destined for greatness 🌟",
+        "Don’t underestimate your own power 🔥",
+        "Your discipline is your superpower 💙",
+        "Level up quietly, glow loudly ✨",
+        "Winning is on your destiny babe 💗",
+        "Korea is waiting for your arrival 😤🔥",
     ]
 
     if st.button("Boost Me"):
