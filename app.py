@@ -1,6 +1,6 @@
 import streamlit as st
 import random
-from openai import OpenAI
+import OpenAI
 
 st.set_page_config(
     page_title="StudyGenie – Your AI Bestie",
