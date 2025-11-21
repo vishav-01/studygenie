@@ -1,34 +1,89 @@
 import streamlit as st
 import random
+from openai import OpenAI
 
+# --------------------------
+# PAGE SETTINGS + ANIME UI
+# --------------------------
 st.set_page_config(
-    page_title="StudyGenie - AI Study Buddy",
+    page_title="StudyGenie - AI Study Bestie",
     page_icon="📚",
     layout="centered"
 )
 
-st.title("📚 StudyGenie – Your AI Study Bestie ✨")
-st.write("Ask questions, make notes, summaries, timetables and get motivation!")
+# CSS FOR KDRAMA + ANIME VIBES 🌈✨
+st.markdown("""
+<style>
+body {
+    background: linear-gradient(135deg, #99ccff, #cc99ff, #ffb3e6);
+    animation: gradient 8s ease infinite;
+    background-size: 400% 400%;
+}
+@keyframes gradient {
+    0% {background-position: 0% 50%;}
+    50% {background-position: 100% 50%;}
+    100% {background-position: 0% 50%;}
+}
+.block-container {
+    background: rgba(255, 255, 255, 0.35);
+    padding: 2rem;
+    border-radius: 20px;
+    backdrop-filter: blur(10px);
+    animation: fadeIn 1.2s ease-in-out;
+}
+@keyframes fadeIn {
+    from {opacity: 0; transform: translateY(15px);}
+    to {opacity: 1; transform: translateY(0);}
+}
+</style>
+""", unsafe_allow_html=True)
 
-# --- SIDEBAR ---
-st.sidebar.header("Tools")
+# --------------------------
+# TITLE
+# --------------------------
+st.title("📚 StudyGenie – Your K-Drama Anime Study Bestie 💞✨")
+st.write("Bestie ask anything… doubts, notes, summaries, timetables or motivation 😭💗")
+
+# --------------------------
+# OPENAI CLIENT
+# --------------------------
+client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+
+def ask_ai(prompt):
+    """Call OpenAI for answers."""
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": prompt}]
+    )
+    return response.choices[0].message.content
+
+
+# --------------------------
+# SIDEBAR MENU
+# --------------------------
+st.sidebar.header("🪄 Tools")
 tool = st.sidebar.selectbox(
     "Choose a feature",
     ["AI Doubt Solver", "Notes Generator", "Summary Maker", "Timetable Builder", "Motivation Booster"]
 )
 
+
 # =======================
-# DOUBT SOLVER
+# AI DOUBT SOLVER
 # =======================
 if tool == "AI Doubt Solver":
     st.subheader("💡 Ask any academic doubt")
     question = st.text_area("Type your question here:")
 
-    if st.button("Solve"):
+    if st.button("Solve ✨"):
         if question.strip():
-            st.success("This is where the AI answer will appear. (Add API key later)")
+            with st.spinner("Thinking like your anime senpai… 💭"):
+                answer = ask_ai(question)
+            st.success("✨ Answer:")
+            st.write(answer)
         else:
-            st.warning("Please type a question first!")
+            st.warning("Bestie type something first 😭💗")
+
 
 # =======================
 # NOTES GENERATOR
@@ -37,17 +92,16 @@ elif tool == "Notes Generator":
     st.subheader("📝 Generate notes for any topic")
     topic = st.text_input("Enter topic name:")
 
-    if st.button("Generate Notes"):
+    if st.button("Generate Notes ✨"):
         if topic.strip():
-            st.success("Generated Notes:")
-            st.write(f"""
-### {topic}
-• Key point 1  
-• Key point 2  
-• Key point 3  
-            """)
+            prompt = f"Create clear, simple notes for: {topic}"
+            with st.spinner("Writing cute notes just for you… 💗"):
+                notes = ask_ai(prompt)
+            st.success("Your Notes 💞")
+            st.write(notes)
         else:
-            st.warning("Enter a topic first!")
+            st.warning("Enter a topic first babe!")
+
 
 # =======================
 # SUMMARY MAKER
@@ -56,12 +110,16 @@ elif tool == "Summary Maker":
     st.subheader("📄 Make short summary")
     text = st.text_area("Paste paragraph:")
 
-    if st.button("Summarize"):
+    if st.button("Summarize ✨"):
         if text.strip():
-            st.success("Summary:")
-            st.write("Short summary appears here. (AI needed)")
+            prompt = f"Summarize this in 5–7 lines: {text}"
+            with st.spinner("Summarizing like a K-drama narrator… 🌙"):
+                summary = ask_ai(prompt)
+            st.success("Your Summary ✨")
+            st.write(summary)
         else:
-            st.warning("Paste something first!")
+            st.warning("Paste something first bestie 🫶")
+
 
 # =======================
 # TIMETABLE BUILDER
@@ -71,16 +129,16 @@ elif tool == "Timetable Builder":
     subjects = st.text_input("Enter subjects (comma separated):")
     hours = st.slider("Study hours per day", 1, 12, 4)
 
-    if st.button("Create Timetable"):
+    if st.button("Create Timetable ✨"):
         if subjects.strip():
-            names = [s.strip() for s in subjects.split(",")]
-            time = round(hours / len(names), 2)
-
-            st.success("Your Timetable")
-            for s in names:
-                st.write(f"• {s}: {time} hrs")
+            prompt = f"Create a timetable for subjects: {subjects}. Daily hours: {hours}"
+            with st.spinner("Balancing your study life like anime protagonist… ⚔️"):
+                table = ask_ai(prompt)
+            st.success("Your Timetable 💙")
+            st.write(table)
         else:
-            st.warning("Enter at least one subject!")
+            st.warning("Enter at least one subject babe!")
+
 
 # =======================
 # MOTIVATION BOOSTER
@@ -88,12 +146,12 @@ elif tool == "Timetable Builder":
 elif tool == "Motivation Booster":
     st.subheader("🔥 Motivation Booster")
     quotes = [
-        "Bestie you got this 😭🔥",
-        "One step today = massive glow tomorrow ✨",
-        "Your future self is cheering for you 💗",
-        "Focus now, flex forever 😤",
-        "You’re literally unstoppable, babe."
+        "Bestie you are literally main character 😭🔥",
+        "Focus now, flex forever 💪✨",
+        "Don’t stop. Your future Korean lifestyle is waiting 💙",
+        "Glow-up loading… keep going 🌸",
+        "You’re unstoppable babe, trust me 💞"
     ]
 
-    if st.button("Boost Me"):
+    if st.button("Boost Me ✨"):
         st.success(random.choice(quotes))
