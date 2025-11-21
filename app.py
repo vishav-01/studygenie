@@ -1,5 +1,6 @@
 import streamlit as st
-from openai import OpenAI
+import openai
+import random
 
 # ---------------- PAGE CONFIG ----------------
 st.set_page_config(
@@ -8,14 +9,12 @@ st.set_page_config(
     layout="centered"
 )
 
-# ---------------- CSS (Visible Gradient, No Animations) ----------------
+# ---------------- CSS (Visible Gradient, No Bugs) ----------------
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
 
-    * {
-        font-family: 'Poppins', sans-serif !important;
-    }
+    * { font-family: 'Poppins', sans-serif !important; }
 
     body {
         background: linear-gradient(135deg, #6C63FF, #A35BFF, #FF69B4);
@@ -57,6 +56,10 @@ with st.sidebar:
     st.header("🔑 API Settings")
     api_key = st.text_input("Enter OpenAI API Key:", type="password")
 
+# Setup OpenAI key safely
+if api_key:
+    openai.api_key = api_key
+
 # ---------------- TOOLS SIDEBAR ----------------
 st.sidebar.header("✨ Tools")
 tool = st.sidebar.selectbox(
@@ -67,14 +70,13 @@ tool = st.sidebar.selectbox(
 # ---------------- OPENAI FUNCTION ----------------
 def ask_openai(question):
     try:
-        client = OpenAI(api_key=api_key)
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",   # SAFE MODEL for Streamlit Cloud
             messages=[{"role": "user", "content": question}]
         )
-        return response.choices[0].message.content
-    except:
-        return "API error bestie 😭. Check your key."
+        return response["choices"][0]["message"]["content"]
+    except Exception as e:
+        return f"Error bestie 😭: {e}"
 
 # ---------------- FEATURES ----------------
 
@@ -149,17 +151,10 @@ elif tool == "Motivation Booster":
         "Study now, glow later ✨",
         "Your success arc is beginning 💗",
         "Focus now, flex forever 😤",
-        "You’re literally unstoppable babe 💜",
-        "One year of discipline = entire life changed.",
-        "Imagine your future self hugging you rn 😭",
-        "You're the main character, act like it ⭐",
-        "Your Korean student era is loading 💗🇰🇷",
-        "You're powerful. Even on bad days.",
-        "Your dream life needs your 2025 grind.",
-        "Stay consistent babe — magic is coming ✨",
-        "Your haters check your progress daily 😂🔥",
-        "Do it for your aesthetic future self 💗",
-        "If you don’t give up, you win 🤍"
+        "You're unstoppable babe 💜",
+        "One year of discipline = new life.",
+        "Your future self is proud rn 😭",
+        "Main character vibes only ⭐"
     ]
 
     import random
