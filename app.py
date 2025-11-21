@@ -1,26 +1,87 @@
-# app.py — StudyGenie Pro (stable, persistent chats, guest + optional Google login)
+# app.py — StudyGenie Pro (Local JSON persistence, no Firebase)
 import streamlit as st
-import requests, json, os, time, random, urllib.parse
+import requests, json, time, random, hashlib, os, urllib.parse
 from pathlib import Path
+from typing import Dict, Any
 
-# ----------------- CONFIG -----------------
-st.set_page_config(page_title="StudyGenie Pro v3", layout="centered")
+# -------------------------
+# CONFIG
+# -------------------------
+st.set_page_config(page_title="StudyGenie Pro (Local DB)", layout="centered")
+DB_PATH = Path("db.json")
 
-DATA_DIR = Path("data")
-DATA_DIR.mkdir(exist_ok=True)
-
-# ----------------- CSS & THEME (lighter gradient + font) -----------------
-def inject_css(dark=False):
-    if dark:
-        bg = "linear-gradient(180deg,#0f172a,#1f2a44,#2b2540)"
-        card_bg = "rgba(255,255,255,0.03)"
-        text_col = "#e6e6ff"
+# -------------------------
+# UTIL: DB (simple JSON file)
+# -------------------------
+def load_db() -> Dict[str, Any]:
+    if DB_PATH.exists():
+        try:
+            return json.loads(DB_PATH.read_text(encoding="utf-8"))
+        except Exception:
+            return {"users": {}}
     else:
-        # sky blue -> light purple -> baby pink (lighter)
-        bg = "linear-gradient(180deg,#dff7ff,#e8d7ff,#ffe6f4)"
-        card_bg = "rgba(255,255,255,0.8)"
-        text_col = "#18122b"
+        return {"users": {}}
 
+def save_db(db: Dict[str, Any]):
+    DB_PATH.write_text(json.dumps(db, ensure_ascii=False, indent=2), encoding="utf-8")
+
+db = load_db()
+
+# -------------------------
+# UTIL: user helpers
+# -------------------------
+def hash_password(password: str) -> str:
+    return hashlib.sha256(password.encode("utf-8")).hexdigest()
+
+def create_user(username: str, password: str, display_name: str):
+    key = username.lower().strip()
+    if key in db["users"]:
+        return False, "Username already exists."
+    db["users"][key] = {
+        "password_hash": hash_password(password) if password else None,
+        "display_name": display_name or username,
+        "profile": {"name": display_name or username, "grade": "", "goal": ""},
+        "chats": [],
+        "notes": [],
+        "flashcards": [],
+        "planner": []
+    }
+    save_db(db)
+    return True, "Account created."
+
+def verify_user(username: str, password: str):
+    key = username.lower().strip()
+    user = db["users"].get(key)
+    if not user:
+        return False, "User not found."
+    if user["password_hash"] is None:
+        return False, "This account is guest-only (no password)."
+    if user["password_hash"] != hash_password(password):
+        return False, "Incorrect password."
+    return True, "OK"
+
+def ensure_guest(username: str, display_name: str):
+    key = username.lower().strip()
+    if key not in db["users"]:
+        db["users"][key] = {
+            "password_hash": None,
+            "display_name": display_name,
+            "profile": {"name": display_name, "grade": "", "goal": ""},
+            "chats": [],
+            "notes": [],
+            "flashcards": [],
+            "planner": []
+        }
+        save_db(db)
+
+# -------------------------
+# THEME & CSS (Gen-Z pastel)
+# -------------------------
+def inject_css(dark=False):
+    # lighter palette: sky-blue -> light-purple -> baby-pink
+    bg = "linear-gradient(180deg,#dff7ff,#e8d7ff,#ffe6f4)" if not dark else "linear-gradient(180deg,#0f172a,#1f2a44,#2b2540)"
+    card_bg = "rgba(255,255,255,0.75)" if not dark else "rgba(255,255,255,0.03)"
+    text = "#16121f" if not dark else "#e6e6ff"
     css = f"""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,400;0,700;1,600&display=swap');
@@ -28,7 +89,7 @@ def inject_css(dark=False):
         background: {bg};
         background-attachment: fixed;
         font-family: 'Poppins', sans-serif;
-        color: {text_col};
+        color: {text};
     }}
     .wide {{ max-width:1100px; margin-left:auto; margin-right:auto; }}
     .card {{
@@ -39,144 +100,132 @@ def inject_css(dark=False):
         margin-bottom:14px;
     }}
     h1 {{ font-weight:700; font-style:italic; }}
-    .small-muted {{ color: rgba(0,0,0,0.45); font-size:12px; }}
-    .chat-user {{ background: rgba(0,0,0,0.06); padding:12px; border-radius:12px; margin:6px 0; }}
+    .muted {{ color: rgba(0,0,0,0.45); font-size:12px; }}
+    .chat-user {{ background: rgba(0,0,0,0.04); padding:12px; border-radius:12px; margin:6px 0; }}
     .chat-ai {{ background: rgba(255,255,255,0.06); padding:12px; border-radius:12px; margin:6px 0; }}
-    .btn { border-radius:10px; padding:6px 12px; }
-    .top-row { display:flex; justify-content:space-between; align-items:center; gap:12px; }
+    .btn {{ border-radius:10px; padding:6px 12px; }}
+    .small {{ font-size:12px; color: rgba(0,0,0,0.55);}}
+    .pop {{ animation: pop 0.35s ease-out; transform-origin: center; }}
+    @keyframes pop {{
+      0% {{ transform: scale(0.96); opacity: 0; }}
+      100% {{ transform: scale(1); opacity: 1; }}
+    }}
     </style>
     """
     st.markdown(css, unsafe_allow_html=True)
 
-# init dark toggle
 if "dark_mode" not in st.session_state:
     st.session_state.dark_mode = False
 inject_css(st.session_state.dark_mode)
 
-# ----------------- HELPERS: persistence -----------------
-def user_file(username: str):
-    safe = urllib.parse.quote_plus(username)
-    return DATA_DIR / f"{safe}_chats.json"
-
-def load_chats(username: str):
-    p = user_file(username)
-    if p.exists():
-        try:
-            return json.loads(p.read_text(encoding="utf-8"))
-        except Exception:
-            return []
-    return []
-
-def save_chats(username: str, chats):
-    p = user_file(username)
-    p.write_text(json.dumps(chats, ensure_ascii=False, indent=2), encoding="utf-8")
-
-# ----------------- AUTH (Guest + Optional Google OAuth) -----------------
-def google_oauth_start():
-    # requires GOOGLE_CLIENT_ID in st.secrets and redirect URI configured in Google Console
-    client_id = st.secrets.get("GOOGLE_CLIENT_ID")
-    redirect_uri = st.secrets.get("REDIRECT_URI")  # must match your app URL + callback
-    if not client_id or not redirect_uri:
-        return None
-    scope = urllib.parse.quote("openid email profile")
-    state = "sgstate"  # could be random
-    auth_url = (
-        f"https://accounts.google.com/o/oauth2/v2/auth?"
-        f"client_id={client_id}&response_type=code&scope={scope}&access_type=offline&state={state}&redirect_uri={urllib.parse.quote(redirect_uri)}"
-    )
-    return auth_url
-
-def google_exchange_code(code):
-    client_id = st.secrets.get("GOOGLE_CLIENT_ID")
-    client_secret = st.secrets.get("GOOGLE_CLIENT_SECRET")
-    redirect_uri = st.secrets.get("REDIRECT_URI")
-    if not (client_id and client_secret and redirect_uri):
-        return None, "Google OAuth not configured in secrets."
-    token_url = "https://oauth2.googleapis.com/token"
-    data = {
-        "code": code,
-        "client_id": client_id,
-        "client_secret": client_secret,
-        "redirect_uri": redirect_uri,
-        "grant_type": "authorization_code"
-    }
-    try:
-        r = requests.post(token_url, data=data, timeout=15)
-        rj = r.json()
-        if "error" in rj:
-            return None, rj.get("error_description", str(rj.get("error")))
-        access_token = rj.get("access_token")
-        # fetch userinfo
-        ui = requests.get("https://www.googleapis.com/oauth2/v3/userinfo", headers={"Authorization": f"Bearer {access_token}"}, timeout=15).json()
-        email = ui.get("email")
-        name = ui.get("name") or email.split("@")[0]
-        return {"email": email, "name": name}, None
-    except Exception as e:
-        return None, str(e)
-
-# Check for callback code in query params
-qp = st.experimental_get_query_params()
-if "code" in qp and "auth" in qp and qp.get("auth")[0] == "google":
-    code = qp.get("code")[0]
-    userinfo, err = google_exchange_code(code)
-    if userinfo:
-        st.session_state.user = userinfo["email"]
-        st.session_state.display_name = userinfo.get("name", st.session_state.user)
-        st.experimental_set_query_params()  # clear params
-    else:
-        st.sidebar.error(f"Google login failed: {err}")
-        st.experimental_set_query_params()
-
-# If no user in session, show login screen
+# -------------------------
+# SESSION: login state & last prompt caching
+# -------------------------
 if "user" not in st.session_state:
-    st.markdown("<div class='wide card'>", unsafe_allow_html=True)
+    st.session_state.user = None
+if "last_request" not in st.session_state:
+    st.session_state.last_request = None
+
+# -------------------------
+# AUTH UI (if not logged in)
+# -------------------------
+def show_login_ui():
+    st.markdown("<div class='wide card pop'>", unsafe_allow_html=True)
     st.title("Welcome to StudyGenie 💞")
-    st.write("Login to save your chats or continue as Guest.")
+    st.write("Login to save chats across sessions. Choose Guest, Create account, or Login.")
     col1, col2 = st.columns(2)
     with col1:
-        guest_name = st.text_input("Enter a display name (Guest):", value="Guest")
+        st.subheader("Guest")
+        guest_name = st.text_input("Nickname (Guest)", value=f"guest{int(time.time())%10000}", key="guest_name")
         if st.button("Continue as Guest"):
-            st.session_state.user = f"guest_{guest_name}_{int(time.time())}"
+            uid = f"guest_{guest_name}_{int(time.time())}"
+            ensure_guest(uid, guest_name)
+            st.session_state.user = uid
             st.session_state.display_name = guest_name
             st.experimental_rerun()
     with col2:
-        # Google login button (only works if secrets configured)
-        google_link = google_oauth_start()
-        if google_link:
-            st.markdown(f"[Sign in with Google]({google_link}&auth=google){' '}")
-            st.caption("Use Google to save chats across devices (requires Google OAuth in Streamlit Secrets).")
+        st.subheader("Create account / Login")
+        tab = st.radio("Action", ["Create", "Login"])
+        uname = st.text_input("Username", key="auth_user")
+        disp = st.text_input("Display name (optional)", key="auth_display")
+        pwd = st.text_input("Password (leave empty for guest)", type="password", key="auth_pwd")
+        if tab == "Create":
+            if st.button("Create Account"):
+                if not uname.strip():
+                    st.warning("Username required.")
+                else:
+                    ok, msg = create_user(uname.strip(), pwd or "", disp or uname.strip())
+                    if ok:
+                        st.success(msg)
+                        st.session_state.user = uname.strip().lower()
+                        st.session_state.display_name = disp or uname.strip()
+                        st.experimental_rerun()
+                    else:
+                        st.error(msg)
         else:
-            st.info("Google Login not configured. Add GOOGLE_CLIENT_ID and REDIRECT_URI to Streamlit Secrets to enable.")
+            if st.button("Login"):
+                if not uname.strip():
+                    st.warning("Username required.")
+                else:
+                    ok, msg = verify_user(uname.strip(), pwd or "")
+                    if ok:
+                        st.success("Logged in.")
+                        st.session_state.user = uname.strip().lower()
+                        st.session_state.display_name = db["users"][uname.strip().lower()].get("display_name", uname.strip())
+                        st.experimental_rerun()
+                    else:
+                        st.error(msg)
     st.markdown("</div>", unsafe_allow_html=True)
     st.stop()
 
-# user is present
+if st.session_state.user is None:
+    show_login_ui()
+
+# Now user is set
 username = st.session_state.user
 display_name = st.session_state.get("display_name", username)
 
-# load persisted chats into session_state if not loaded
-if "chats_loaded_for" not in st.session_state or st.session_state.chats_loaded_for != username:
-    st.session_state.chat_history = load_chats(username)
-    st.session_state.chats_loaded_for = username
+# ensure user exists in db
+ensure_guest(username, display_name)
+# load user data into session if not already
+if "loaded_user" not in st.session_state or st.session_state.loaded_user != username:
+    user_data = db["users"].get(username.lower()) or db["users"].get(username) or db["users"].get(username.lower().strip())
+    if user_data:
+        st.session_state.chat_history = user_data.get("chats", [])
+        st.session_state.notes_store = user_data.get("notes", [])
+        st.session_state.flashcards = user_data.get("flashcards", [])
+        st.session_state.planner = user_data.get("planner", [])
+        st.session_state.profile = user_data.get("profile", {"name": display_name, "grade": "", "goal": ""})
+    else:
+        # safety fallback
+        st.session_state.chat_history = []
+        st.session_state.notes_store = []
+        st.session_state.flashcards = []
+        st.session_state.planner = []
+        st.session_state.profile = {"name": display_name, "grade": "", "goal": ""}
+    st.session_state.loaded_user = username
 
-# ----------------- CLEAN AI CALL with retries + safe parsing -----------------
-def ask_openai(prompt, model="gpt-4o-mini", temp=0.45, max_retries=2):
+# -------------------------
+# ROBUST OPENAI CALL (requests, retries, safe parse)
+# -------------------------
+def ask_openai(prompt: str, model="gpt-4o-mini", temp=0.45, max_retries=2) -> str:
+    # cache duplicate requests to avoid spamming
+    if st.session_state.last_request == prompt and prompt.strip():
+        return "⚠️ Duplicate request blocked. Modify prompt or try a different tool."
     key = st.secrets.get("OPENAI_API_KEY")
     if not key:
-        return "❌ No OPENAI_API_KEY found in Streamlit Secrets. Add it and redeploy."
-
+        return "❌ No OPENAI_API_KEY found in Streamlit Secrets."
     url = "https://api.openai.com/v1/chat/completions"
     headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
     payload = {
         "model": model,
         "messages": [
-            {"role": "system", "content": "You are StudyGenie, a friendly concise study assistant."},
+            {"role": "system", "content": "You are StudyGenie, a concise friendly study assistant."},
             {"role": "user", "content": prompt}
         ],
         "temperature": temp,
         "max_tokens": 700
     }
-
     attempt = 0
     while attempt <= max_retries:
         attempt += 1
@@ -185,129 +234,131 @@ def ask_openai(prompt, model="gpt-4o-mini", temp=0.45, max_retries=2):
         except Exception as e:
             if attempt > max_retries:
                 return f"❌ Network error: {e}"
-            time.sleep(1.2)
-            continue
-
+            time.sleep(1.0); continue
         try:
             rj = r.json()
         except Exception as e:
             if attempt > max_retries:
-                return f"❌ Invalid JSON from AI: {e}"
-            time.sleep(0.8)
-            continue
-
-        # handle API error
+                return f"❌ Invalid JSON response: {e}"
+            time.sleep(0.8); continue
         if "error" in rj:
-            # if rate limit or server error, retry a couple times
             err_msg = rj["error"].get("message", str(rj["error"]))
-            if attempt <= max_retries and ("rate limit" in err_msg.lower() or r.status_code >= 500):
-                time.sleep(1.5)
-                continue
+            if attempt <= max_retries and (r.status_code >= 500 or "rate limit" in err_msg.lower()):
+                time.sleep(1.2); continue
             return f"❌ AI error: {err_msg}"
-
-        # safe extraction
         choices = rj.get("choices")
         if not choices:
             if attempt <= max_retries:
-                time.sleep(0.8)
-                continue
-            return "❌ AI returned no choices. Try again in a moment."
-
-        # extract content robustly
-        msg = choices[0].get("message") or choices[0].get("text") or {}
-        content = ""
-        if isinstance(msg, dict):
-            content = msg.get("content") or msg.get("text") or ""
-        else:
-            content = str(msg)
-
+                time.sleep(0.6); continue
+            return "❌ AI returned no choices. Try again."
+        msg = choices[0].get("message") or {}
+        content = msg.get("content") or msg.get("text") or ""
         if not content and attempt <= max_retries:
-            time.sleep(0.6)
-            continue
-
-        # success
+            time.sleep(0.6); continue
+        st.session_state.last_request = prompt
         return content or "❌ Empty response from AI."
     return "❌ Failed after retries."
 
-# ----------------- LAYOUT -----------------
+# -------------------------
+# UI HEADER / Logout / Dark mode
+# -------------------------
+inject_css(st.session_state.dark_mode)
 st.markdown("<div class='wide'>", unsafe_allow_html=True)
 c1, c2 = st.columns([4,1])
 with c1:
     st.markdown(f"**Signed in as:** {display_name}")
+    st.markdown("<div class='small muted'>Local-saved chats • Guest or account login • Add OPENAI_API_KEY in Secrets</div>", unsafe_allow_html=True)
 with c2:
+    if st.button("🌙 Dark" if not st.session_state.dark_mode else "🌤️ Light"):
+        st.session_state.dark_mode = not st.session_state.dark_mode
+        inject_css(st.session_state.dark_mode)
+        st.experimental_rerun()
     if st.button("Logout"):
-        # persist chats
-        save_chats(username, st.session_state.chat_history)
-        for k in ["user", "display_name", "chats_loaded_for"]:
+        # persist user data and logout
+        db["users"][username.lower()] = {
+            "password_hash": db["users"][username.lower()].get("password_hash"),
+            "display_name": st.session_state.profile.get("name", display_name),
+            "profile": st.session_state.profile,
+            "chats": st.session_state.chat_history,
+            "notes": st.session_state.notes_store,
+            "flashcards": st.session_state.flashcards,
+            "planner": st.session_state.planner
+        }
+        save_db(db)
+        for k in ["user","display_name","loaded_user","last_request"]:
             if k in st.session_state: del st.session_state[k]
         st.experimental_rerun()
 st.markdown("</div>", unsafe_allow_html=True)
 
-# ----------------- NAV (quick jump 1-5) -----------------
+# -------------------------
+# NAV + Quick buttons (1..5)
+# -------------------------
 col1, col2, col3, col4, col5 = st.columns(5)
-if col1.button("1️⃣ Doubt"): page = "Doubt"
-elif col2.button("2️⃣ Flashcards"): page = "Flashcards"
-elif col3.button("3️⃣ Notes"): page = "Notes"
-elif col4.button("4️⃣ Planner"): page = "Planner"
-elif col5.button("5️⃣ Boost"): page = "Boost"
+if col1.button("1️⃣ Doubt"): page="Doubt"
+elif col2.button("2️⃣ Flashcards"): page="Flashcards"
+elif col3.button("3️⃣ Notes"): page="Notes"
+elif col4.button("4️⃣ Planner"): page="Planner"
+elif col5.button("5️⃣ Boost"): page="Boost"
 else:
-    # default page from sidebar selection
-    sidebar_choice = st.sidebar.selectbox("Go to", ["Doubt","Flashcards","Notes","Summary","AnswerChecker","Planner","Voice","Saved","Profile","Boost"])
-    page = sidebar_choice
+    page = st.sidebar.selectbox("Go to", ["Doubt","Flashcards","Notes","Summary","AnswerChecker","Planner","Voice","Saved","Profile","Boost"])
 
-# ----------------- PAGE: Doubt Solver -----------------
+# -------------------------
+# PAGE: Doubt Solver
+# -------------------------
 if page == "Doubt":
-    st.markdown("<div class='card'>", unsafe_allow_html=True)
+    st.markdown("<div class='card pop'>", unsafe_allow_html=True)
     st.subheader("💡 AI Doubt Solver")
     q = st.text_area("Ask your question:", key="doubt_in")
     if st.button("Solve"):
         if q.strip():
             with st.spinner("Thinking..."):
                 ans = ask_openai(q)
-            # append to history and save
             st.session_state.chat_history.append({"role":"user","text":q,"time":int(time.time())})
             st.session_state.chat_history.append({"role":"ai","text":ans,"time":int(time.time())})
-            save_chats(username, st.session_state.chat_history)
-            st.markdown("**Answer:**")
-            st.write(ans)
+            # update db and persist
+            db["users"][username.lower()]["chats"] = st.session_state.chat_history
+            save_db(db)
+            st.markdown("**Answer:**"); st.write(ans)
         else:
             st.warning("Ask something first!")
-    # show recent chat
     if st.checkbox("Show chat history"):
-        for msg in reversed(st.session_state.chat_history[-30:]):
+        for msg in reversed(st.session_state.chat_history[-50:]):
             cls = "chat-user" if msg["role"]=="user" else "chat-ai"
             st.markdown(f"<div class='{cls}'>{msg['text']}</div>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
-# ----------------- PAGE: Flashcards (generate & SRS placeholder) -----------------
+# -------------------------
+# PAGE: Flashcards
+# -------------------------
 elif page == "Flashcards":
-    st.markdown("<div class='card'>", unsafe_allow_html=True)
+    st.markdown("<div class='card pop'>", unsafe_allow_html=True)
     st.subheader("🃏 Flashcards")
-    topic = st.text_input("Topic for flashcards:")
-    count = st.slider("How many cards?", 3, 20, 6)
-    if st.button("Generate Cards"):
+    topic = st.text_input("Topic for cards:")
+    cnt = st.slider("Cards", 3, 20, 6)
+    if st.button("Generate"):
         if topic.strip():
-            raw = ask_openai(f"Create {count} simple Q & A flashcards for: {topic}. Use 'Q:' and 'A:' labels.")
-            # basic parse
+            raw = ask_openai(f"Create {cnt} Q/A flashcards for: {topic}. Label with Q: and A:")
             cards=[]
+            qtmp=None
             for line in raw.splitlines():
                 line=line.strip()
                 if line.lower().startswith("q:"):
-                    qline=line.split(":",1)[1].strip()
-                    cards.append({"q":qline,"a":""})
-                elif line.lower().startswith("a:") and cards:
-                    cards[-1]["a"]=line.split(":",1)[1].strip()
+                    qtmp=line.split(":",1)[1].strip()
+                elif line.lower().startswith("a:") and qtmp:
+                    a=line.split(":",1)[1].strip()
+                    cards.append({"q":qtmp,"a":a}); qtmp=None
             if not cards:
-                # fallback split paragraphs
                 parts=[p.strip() for p in raw.split("\n\n") if p.strip()]
                 for p in parts:
                     if ":" in p:
-                        k,v=p.split(":",1)
-                        cards.append({"q":k.strip()[:200],"a":v.strip()})
+                        k,v=p.split(":",1); cards.append({"q":k.strip()[:200],"a":v.strip()})
             st.session_state.flashcards = cards
+            # persist
+            db["users"][username.lower()]["flashcards"] = st.session_state.flashcards
+            save_db(db)
             st.success(f"Created {len(cards)} cards.")
         else:
-            st.warning("Enter a topic.")
+            st.warning("Enter topic.")
     if st.session_state.get("flashcards"):
         idx = st.number_input("Card index", 1, max(1,len(st.session_state.flashcards)), 1)
         card = st.session_state.flashcards[idx-1]
@@ -316,162 +367,193 @@ elif page == "Flashcards":
             st.markdown(f"**A:** {card['a']}")
     st.markdown("</div>", unsafe_allow_html=True)
 
-# ----------------- PAGE: Notes (generate & save) -----------------
+# -------------------------
+# PAGE: Notes
+# -------------------------
 elif page == "Notes":
-    st.markdown("<div class='card'>", unsafe_allow_html=True)
-    st.subheader("📝 Notes Generator")
-    notes_topic = st.text_input("Topic:")
+    st.markdown("<div class='card pop'>", unsafe_allow_html=True)
+    st.subheader("📝 Notes Generator & Save")
+    topic = st.text_input("Topic:")
     if st.button("Generate Notes"):
-        if notes_topic.strip():
-            out = ask_openai(f"Create concise class notes for: {notes_topic}. Use bullets and short examples.")
-            st.text_area("Generated notes", value=out, height=260, key="gen_notes_box")
+        if topic.strip():
+            out = ask_openai(f"Create concise class notes for: {topic}. Use bullets and 1 short example.")
+            st.text_area("Generated notes", value=out, height=260, key="gen_notes_area")
         else:
-            st.warning("Enter a topic.")
-    if st.session_state.get("gen_notes_box"):
+            st.warning("Enter topic.")
+    if st.session_state.get("gen_notes_area"):
         if st.button("Save Notes"):
-            st.session_state.notes_store.append({"title": notes_topic or "Untitled", "content": st.session_state.get("gen_notes_box")})
-            save_chats(username, st.session_state.chat_history)  # save chat too just to persist
+            st.session_state.notes_store.append({"title": topic or "Untitled", "content": st.session_state.get("gen_notes_area")})
+            db["users"][username.lower()]["notes"] = st.session_state.notes_store
+            save_db(db)
             st.success("Saved.")
     st.markdown("</div>", unsafe_allow_html=True)
 
-# ----------------- PAGE: Summary (Brain-dump cleaner) -----------------
+# -------------------------
+# PAGE: Summary / Brain-dump cleaner
+# -------------------------
 elif page == "Summary":
-    st.markdown("<div class='card'>", unsafe_allow_html=True)
+    st.markdown("<div class='card pop'>", unsafe_allow_html=True)
     st.subheader("🧠 Brain-dump Cleaner")
-    messy = st.text_area("Paste messy notes / ideas here:")
+    messy = st.text_area("Paste messy notes / ideas:")
     if st.button("Clean"):
         if messy.strip():
-            out = ask_openai(f"Organize and clean this brain-dump into titled sections and action items:\n{messy}")
+            out = ask_openai(f"Organize and clean this into titled sections and action items:\n{messy}")
             st.write(out)
-            # store in chat history as action
-            st.session_state.chat_history.append({"role":"user","text":"Brain-dump cleaned","time":int(time.time())})
+            st.session_state.chat_history.append({"role":"user","text":"Cleaned brain dump","time":int(time.time())})
             st.session_state.chat_history.append({"role":"ai","text":out,"time":int(time.time())})
-            save_chats(username, st.session_state.chat_history)
+            db["users"][username.lower()]["chats"] = st.session_state.chat_history
+            save_db(db)
         else:
             st.warning("Paste something.")
     st.markdown("</div>", unsafe_allow_html=True)
 
-# ----------------- PAGE: Answer Checker -----------------
+# -------------------------
+# PAGE: Answer Checker
+# -------------------------
 elif page == "AnswerChecker":
-    st.markdown("<div class='card'>", unsafe_allow_html=True)
+    st.markdown("<div class='card pop'>", unsafe_allow_html=True)
     st.subheader("✅ Answer Checker")
     q = st.text_input("Question:")
-    stud = st.text_area("Student's answer:")
+    student = st.text_area("Student's answer:")
     if st.button("Check"):
-        if q.strip() and stud.strip():
-            out = ask_openai(f"Question: {q}\nStudent Answer: {stud}\nGive a score /10 and concise feedback with corrections.")
+        if q.strip() and student.strip():
+            out = ask_openai(f"Question: {q}\nStudent answer: {student}\nGive a score /10 and short feedback.")
             st.write(out)
-            st.session_state.chat_history.append({"role":"user","text":f"Checked answer for: {q}","time":int(time.time())})
+            st.session_state.chat_history.append({"role":"user","text":"Checked answer","time":int(time.time())})
             st.session_state.chat_history.append({"role":"ai","text":out,"time":int(time.time())})
-            save_chats(username, st.session_state.chat_history)
+            db["users"][username.lower()]["chats"] = st.session_state.chat_history
+            save_db(db)
         else:
-            st.warning("Add both fields.")
+            st.warning("Fill both fields.")
     st.markdown("</div>", unsafe_allow_html=True)
 
-# ----------------- PAGE: Planner -----------------
+# -------------------------
+# PAGE: Planner
+# -------------------------
 elif page == "Planner":
-    st.markdown("<div class='card'>", unsafe_allow_html=True)
+    st.markdown("<div class='card pop'>", unsafe_allow_html=True)
     st.subheader("📆 Planner")
     task = st.text_input("New task:")
-    deadline = st.text_input("Deadline (optional):")
-    if st.button("Add task"):
+    when = st.text_input("When (optional):")
+    if st.button("Add Task"):
         if task.strip():
-            st.session_state.planner.append({"task":task,"deadline":deadline})
+            st.session_state.planner.append({"task":task,"when":when})
+            db["users"][username.lower()]["planner"] = st.session_state.planner
+            save_db(db)
             st.success("Added.")
         else:
             st.warning("Enter a task.")
     if st.session_state.planner:
         for i,t in enumerate(st.session_state.planner,1):
-            st.write(f"{i}. {t['task']} — {t['deadline']}")
+            st.write(f"{i}. {t['task']} — {t['when']}")
         if st.button("Generate 7-day plan"):
             prompt = "Create a 7-day study schedule from these tasks:\n" + "\n".join([p["task"] for p in st.session_state.planner])
             out = ask_openai(prompt)
             st.write(out)
     st.markdown("</div>", unsafe_allow_html=True)
 
-# ----------------- PAGE: Voice input (upload -> transcribe) -----------------
+# -------------------------
+# PAGE: Voice (upload -> transcribe)
+# -------------------------
 elif page == "Voice":
-    st.markdown("<div class='card'>", unsafe_allow_html=True)
-    st.subheader("🎤 Voice Input (upload & transcribe)")
+    st.markdown("<div class='card pop'>", unsafe_allow_html=True)
+    st.subheader("🎤 Voice Input (optional)")
     audio = st.file_uploader("Upload audio (mp3/m4a/wav)", type=["mp3","m4a","wav"])
     if audio and st.button("Transcribe & Answer"):
         key = st.secrets.get("OPENAI_API_KEY")
         if not key:
-            st.error("Add OPENAI_API_KEY to secrets.")
+            st.error("Add OPENAI_API_KEY to Streamlit Secrets to use transcription.")
         else:
-            files = {"file": (audio.name, audio.getvalue())}
-            data = {"model":"gpt-4o-transcribe"}  # might need adjustment per your OpenAI access
-            headers = {"Authorization": f"Bearer {key}"}
             try:
-                r = requests.post("https://api.openai.com/v1/audio/transcriptions", headers=headers, files=files, data=data, timeout=90)
-                rj = r.json()
+                files = {"file": (audio.name, audio.getvalue())}
+                data = {"model":"gpt-4o-transcribe"}  # or your available transcription model
+                headers = {"Authorization": f"Bearer {key}"}
+                res = requests.post("https://api.openai.com/v1/audio/transcriptions", headers=headers, files=files, data=data, timeout=90)
+                rj = res.json()
                 if "error" in rj:
                     st.error("Transcription error: " + str(rj["error"].get("message","")))
                 else:
                     text = rj.get("text","")
-                    st.write("Transcribed Text:")
+                    st.write("Transcribed text:")
                     st.write(text)
-                    out = ask_openai("Answer based on the transcription:\n" + text)
-                    st.write("AI Answer:")
+                    out = ask_openai("Answer based on transcript:\n" + text)
+                    st.write("AI answer:")
                     st.write(out)
             except Exception as e:
                 st.error("Transcription failed: " + str(e))
     st.markdown("</div>", unsafe_allow_html=True)
 
-# ----------------- PAGE: Saved (notes & chats) -----------------
+# -------------------------
+# PAGE: Saved (notes & chats)
+# -------------------------
 elif page == "Saved":
-    st.markdown("<div class='card'>", unsafe_allow_html=True)
+    st.markdown("<div class='card pop'>", unsafe_allow_html=True)
     st.subheader("💾 Saved Notes & Chats")
-    # saved notes
     if st.session_state.notes_store:
         for i,n in enumerate(st.session_state.notes_store,1):
-            with st.expander(n["title"]):
+            with st.expander(f"{i}. {n['title']}"):
                 st.write(n["content"])
                 st.download_button(f"Download {n['title']}", n["content"], file_name=f"{n['title']}.txt")
     else:
         st.info("No saved notes.")
-    # saved chats preview & download
     if st.session_state.chat_history:
-        st.write("Recent chat entries (latest first):")
-        for msg in st.session_state.chat_history[-20:][::-1]:
+        st.write("Recent chats (latest first):")
+        for msg in st.session_state.chat_history[-50:][::-1]:
             who = "You" if msg["role"]=="user" else "StudyGenie"
             st.write(f"**{who}:** {msg['text']}")
-        if st.button("Download chat history"):
-            fname = f"chats_{username}.json"
-            st.download_button("Download JSON", json.dumps(st.session_state.chat_history, ensure_ascii=False, indent=2), file_name=fname)
+        if st.button("Download chat JSON"):
+            st.download_button("Download", json.dumps(st.session_state.chat_history, ensure_ascii=False, indent=2), file_name=f"chats_{username}.json")
     else:
-        st.info("No chats yet.")
+        st.info("No chats.")
     st.markdown("</div>", unsafe_allow_html=True)
 
-# ----------------- PAGE: Profile -----------------
+# -------------------------
+# PAGE: Profile
+# -------------------------
 elif page == "Profile":
-    st.markdown("<div class='card'>", unsafe_allow_html=True)
+    st.markdown("<div class='card pop'>", unsafe_allow_html=True)
     st.subheader("👤 Profile")
-    n = st.text_input("Display name", value=st.session_state.get("display_name",""))
-    g = st.text_input("Grade / Year", value=st.session_state.profile.get("grade",""))
-    goal = st.text_input("Short goal", value=st.session_state.profile.get("goal",""))
+    name = st.text_input("Display name", value=st.session_state.profile.get("name", display_name))
+    grade = st.text_input("Grade", value=st.session_state.profile.get("grade",""))
+    goal = st.text_input("Short goal (ex: Study in Korea)", value=st.session_state.profile.get("goal",""))
     if st.button("Save profile"):
-        st.session_state.display_name = n or st.session_state.display_name
-        st.session_state.profile.update({"grade":g,"goal":goal,"name":st.session_state.display_name})
+        st.session_state.profile.update({"name": name, "grade": grade, "goal": goal})
+        # persist
+        db["users"][username.lower()]["profile"] = st.session_state.profile
+        db["users"][username.lower()]["display_name"] = name
+        save_db(db)
         st.success("Profile saved.")
     st.write(st.session_state.profile)
     st.markdown("</div>", unsafe_allow_html=True)
 
-# ----------------- PAGE: Boost (Motivation) -----------------
+# -------------------------
+# PAGE: Boost
+# -------------------------
 elif page == "Boost":
-    st.markdown("<div class='card'>", unsafe_allow_html=True)
+    st.markdown("<div class='card pop'>", unsafe_allow_html=True)
     st.subheader("💖 Motivation Booster")
     mega = [
-        "Bestie you're UNSTOPPABLE 🔥","Your future self is so proud 💗","Focus now → flex later ✨",
-        "Small steps = massive glow-up","Korean apartment vibes loading…","Discipline looks cute on you"
+        "Bestie you're UNSTOPPABLE 🔥","Your future self is proud 💗","Glow-up loading ✨",
+        "Small steps = massive glow-up","Korean apartment vibes loading…","Discipline looks cute on you",
+        "One study session today = big flex tomorrow","You are literally iconic"
     ]
     if st.button("Boost me"):
         st.success(random.choice(mega))
     st.markdown("</div>", unsafe_allow_html=True)
 
-# ----------------- ensure chats saved on exit-ish -----------------
-save_chats(username, st.session_state.chat_history)
+# -------------------------
+# Persist current session user data to db at end (best-effort)
+# -------------------------
+db["users"][username.lower()]["chats"] = st.session_state.chat_history
+db["users"][username.lower()]["notes"] = st.session_state.notes_store
+db["users"][username.lower()]["flashcards"] = st.session_state.flashcards
+db["users"][username.lower()]["planner"] = st.session_state.planner
+db["users"][username.lower()]["profile"] = st.session_state.profile
+db["users"][username.lower()]["display_name"] = st.session_state.profile.get("name", display_name)
+save_db(db)
 
-# ----------------- footer -----------------
+# -------------------------
+# Footer
+# -------------------------
 st.markdown("<hr/>", unsafe_allow_html=True)
-st.markdown("<div style='text-align:center; font-size:12px; color:rgba(0,0,0,0.55)'>StudyGenie Pro — made with ❤️. Use OpenAI key in Streamlit Secrets.</div>", unsafe_allow_html=True)
+st.markdown("<div style='text-align:center; font-size:12px; color:rgba(0,0,0,0.55)'>StudyGenie Pro • Local-saved chats • Made with ❤️</div>", unsafe_allow_html=True)
