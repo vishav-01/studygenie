@@ -1,6 +1,6 @@
 import streamlit as st
 import random
-
+from openai import OpenAI
 # --------------------------
 # PAGE SETTINGS + ANIME UI
 # --------------------------
@@ -10,7 +10,7 @@ st.set_page_config(
     layout="centered"
 )
 
-#CSS 
+# CSS 
 st.markdown("""
 <style>
 body {
