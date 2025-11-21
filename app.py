@@ -1,6 +1,5 @@
 import streamlit as st
 import random
-from openai import OpenAI
 
 # --------------------------
 # PAGE SETTINGS + ANIME UI
@@ -11,7 +10,7 @@ st.set_page_config(
     layout="centered"
 )
 
-# CSS FOR KDRAMA + ANIME VIBES 🌈✨
+#CSS 
 st.markdown("""
 <style>
 body {
@@ -41,7 +40,8 @@ body {
 # --------------------------
 # TITLE
 # --------------------------
-st.title("📚 StudyGenie – Your K-Drama Anime Study Bestie 💞✨")
+st.title("📚 StudyGenie – Study Bestie 💞✨")
+
 st.write("Bestie ask anything… doubts, notes, summaries, timetables or motivation 😭💗")
 
 # --------------------------
@@ -151,6 +151,44 @@ elif tool == "Motivation Booster":
         "Don’t stop. Your future Korean lifestyle is waiting 💙",
         "Glow-up loading… keep going 🌸",
         "You’re unstoppable babe, trust me 💞"
+    "Bestie… your future self is literally blowing kisses at you rn 💋😭✨",
+    "Focus now, flex forever. That Korean lifestyle is WAITING 😤🔥",
+    "You are not behind. You are EXACTLY on your destiny timeline ✨💗",
+    "People wish they had your ambition babe. KEEP GOING 🫶",
+    "One study session today = one luxury outfit tomorrow fr 👗💸",
+    "You’re building a life your younger self would cry seeing 😭💞",
+    "Your success arc is loading… slowly but VERY dangerously 🔥😤",
+    "You are the main character. Everyone else is supporting cast 😎✨",
+    "Omg babe every time you study, your glow-up bar fills +10% 💗",
+    "Stop underestimating yourself. You’re literally THAT GUY. PERIOD 💥",
+    "Korea is calling your name… don’t make it wait 💙🇰🇷",
+    "Small steps >>> massive transformation. Keep stacking wins 🌱✨",
+    "Your discipline is silently making you hotter. No joke 😭🔥",
+    "Imagine telling your future Korean friends you never gave up 🤧💞",
+    "You're not tired. You're evolving. Upgrade mode ON 💫🔮",
+    "Someone out there is dreaming of the life YOU’RE about to build 😤✨",
+    "Slow progress is STILL progress. Don’t ever forget that babe 💗",
+    "Your dreams didn’t choose you randomly. You're built for this 🦋✨",
+    "If only you could see yourself the way your future sees you 😭💙",
+    "You’re not working for marks; you’re working for FREEDOM 🗽💸",
+    "Study now so your life later becomes a literal aesthetic Pinterest board 🌸✨",
+    "You’re not like others. You want more. You’ll GET more 🔥",
+    "Do it for that solo apartment in Seoul with the led lights 😭💫",
+    "Your haters? Irrelevant NPCs. You’re levelling up 🔥",
+    "One hour of focus today = one more day closer to your dream life 💗",
+    "You have no idea how proud your future self is of you rn 😭✨",
+    "You’re not average. Stop acting like it 😤",
+    "Your consistency is louder than your doubts 💥",
+    "The world is NOT ready for your glow-up arc 😭🔥",
+    "Your brain is powerful. Use it like a weapon, bestie ⚔️💜",
+    "Imagine quitting when you’re THIS CLOSE… no babe, KEEP GOING 🫶🔥",
+    "You’re building a life that feels like a K-drama. Iconic behavior fr 🌙✨",
+    "Even on your worst days, you’re still that smart, cute, determined king 😭💗",
+    "Wake up, slay, study, glow, repeat. That’s the vibe forever 🌟",
+    "Your dream version of you? He’s REAL. And you’re getting closer 💞",
+    "Success isn’t luck. It’s YOU. You’re the magic ingredient 💫"
+]
+
     ]
 
     if st.button("Boost Me ✨"):
