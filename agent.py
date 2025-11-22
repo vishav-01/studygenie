@@ -1,6 +1,7 @@
 import json
 from openai import OpenAI
 
+
 class DataScienceAgent:
     def __init__(self, base_url, model, verbose=False, stream=False):
         self.client = OpenAI(base_url=base_url, api_key="not-needed")
