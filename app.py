@@ -208,7 +208,7 @@ elif tool == "Timetable Builder":
 
 elif tool == "Motivation Booster":
     st.markdown("<div class='section'>", unsafe_allow_html=True)
-    st.subheader("🔥 Motivation (No short forms)")
+    st.subheader("🔥 Motivation ")
 
     quotes = [
         "Your efforts today shape the life you will enjoy tomorrow.",
