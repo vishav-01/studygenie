@@ -84,7 +84,7 @@ def ask_ai(prompt):
                 "Always reply short, crisp, helpful.\n\n" + prompt
             )
         }],
-        "max_tokens": 350,
+        "max_tokens": 1500,
         "temperature": 0.65
     }
 
