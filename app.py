@@ -257,12 +257,9 @@ elif tool == "Brain-Dump Cleaner":
             ans = ask_ai("Organize this neatly:\n" + dump)
             st.markdown(f"<div class='genie-bubble'>{ans}</div>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
-
-elif tool == "Answer Checker":
-    st.markdown("<div class='section'>", unsafe_allow_html=True)
     st.subheader("✔️ Check Your Answer")
 
-    your = st.text_area("Your Answer:")
+ 
     corr = st.text_area("Correct Answer:")
 
     if st.button("Check ✨"):
