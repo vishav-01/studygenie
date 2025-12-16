@@ -5,7 +5,135 @@ import requests, json, random
 st.set_page_config("StudyGenie AI", layout="wide")
 
 # ================= THEME =================
-theme = st.sidebar.selectbox(
+theme =import streamlit as st
+import requests
+import json
+
+# =====================================================
+# PAGE CONFIG
+# =====================================================
+st.set_page_config(page_title="StudyGenie — AI Bestie", layout="wide")
+
+# =====================================================
+# FLAT BLUE UI (NO GRADIENT)
+# =====================================================
+st.markdown("""
+<style>
+html, body, [data-testid="stAppViewContainer"] {
+    background-color: #2ea3f2;
+    font-family: 'Poppins', sans-serif;
+    color: white;
+}
+
+section[data-testid="stSidebar"] {
+    background-color: #7cc7ff;
+}
+
+h1, h2, h3 {
+    color: white;
+}
+
+textarea, input {
+    border-radius: 10px !important;
+}
+
+.response-box {
+    background: rgba(255,255,255,0.18);
+    padding: 15px;
+    border-radius: 12px;
+    margin-top: 15px;
+    font-size: 16px;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# =====================================================
+# SIDEBAR
+# =====================================================
+with st.sidebar:
+    st.title("💙 StudyGenie")
+    st.caption("Your AI Study Bestie ✨")
+
+    tool = st.radio(
+        "Choose a Tool",
+        [
+            "AI Planner",
+            "Mindset Reset",
+            "Study Routine Designer",
+            "Exam Strategy Maker",
+            "Personal Study Coach"
+        ]
+    )
+
+# =====================================================
+# AI FUNCTION
+# =====================================================
+def ask_ai(prompt):
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {st.secrets['OPENAI_API_KEY']}"
+    }
+
+    payload = {
+        "model": "gpt-4.1-mini",
+        "messages": [
+            {
+                "role": "user",
+                "content": "Reply in a calm, friendly, simple tone.\n" + prompt
+            }
+        ],
+        "max_tokens": 1200,
+        "temperature": 0.6
+    }
+
+    try:
+        r = requests.post(
+            "https://api.openai.com/v1/chat/completions",
+            headers=headers,
+            data=json.dumps(payload),
+            timeout=20
+        )
+        return r.json()["choices"][0]["message"]["content"]
+    except:
+        return "⚠️ Something went wrong bestie, try again."
+
+# =====================================================
+# MAIN AREA (NO CENTER TITLE)
+# =====================================================
+st.subheader(f"✨ {tool}")
+
+# =====================================================
+# FEATURES — ALL SAME UI STYLE
+# =====================================================
+
+if tool == "AI Planner":
+    user_input = st.text_area("What do you want to plan?")
+    if st.button("Send"):
+        reply = ask_ai(f"Create a simple daily plan for: {user_input}")
+        st.markdown(f"<div class='response-box'>{reply}</div>", unsafe_allow_html=True)
+
+elif tool == "Mindset Reset":
+    if st.button("Reset My Mind"):
+        reply = ask_ai("Give a short, calming mindset reset.")
+        st.markdown(f"<div class='response-box'>{reply}</div>", unsafe_allow_html=True)
+
+elif tool == "Study Routine Designer":
+    hours = st.text_input("How many hours can you study daily?")
+    if st.button("Send"):
+        reply = ask_ai(f"Create a study routine for {hours} hours.")
+        st.markdown(f"<div class='response-box'>{reply}</div>", unsafe_allow_html=True)
+
+elif tool == "Exam Strategy Maker":
+    exam = st.text_input("Enter exam name")
+    if st.button("Send"):
+        reply = ask_ai(f"Create a smart exam strategy for {exam}.")
+        st.markdown(f"<div class='response-box'>{reply}</div>", unsafe_allow_html=True)
+
+elif tool == "Personal Study Coach":
+    problem = st.text_area("Tell me what you're struggling with")
+    if st.button("Send"):
+        reply = ask_ai(f"You are a supportive study coach. Help with: {problem}")
+        st.markdown(f"<div class='response-box'>{reply}</div>", unsafe_allow_html=True) st.sidebar.selectbox(
     "🌈 Choose Theme",
     ["Sky Blue", "Pink Pastel", "Lavender"]
 )
