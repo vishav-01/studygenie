@@ -1,211 +1,169 @@
 import streamlit as st
-import requests
-import json
-import random
+import requests, json, random
 
-# =====================================================
-# PAGE CONFIG
-# =====================================================
-st.set_page_config(page_title="StudyGenie — AI Study Bestie", layout="wide")
+# ================= PAGE CONFIG =================
+st.set_page_config("StudyGenie AI", layout="wide")
 
-# =====================================================
-# THEME SYSTEM (Default: Doraemon Blue Gradient)
-# =====================================================
+# ================= THEME =================
 theme = st.sidebar.selectbox(
     "🌈 Choose Theme",
-    ["Doraemon", "Sky Blue", "Pink Pastel", "Lavender"],
-    index=0  # Default
+    ["Sky Blue", "Pink Pastel", "Lavender"]
 )
 
-theme_colors = {
-    "Doraemon": ("#5EC2FF", "#0089E0"),  # Gradient
-    "Sky Blue": ("#d2eaff", "#8cc8ff"),
-    "Pink Pastel": ("#ffd6e8", "#ffa4c8"),
-    "Lavender": ("#e7d9ff", "#c7a4ff")
+themes = {
+    "Sky Blue": ("#e8f4ff", "#cce4ff"),
+    "Pink Pastel": ("#ffe6f2", "#fdd1e8"),
+    "Lavender": ("#f0e9ff", "#e2d6ff")
 }
+g1, g2 = themes[theme]
 
-grad_start, grad_end = theme_colors[theme]
+st.markdown(f"""
+<style>
+.stApp {{
+    background: linear-gradient(180deg, {g1}, {g2});
+    font-family: 'Poppins', sans-serif;
+}}
+.section {{
+    background: rgba(255,255,255,0.55);
+    padding: 25px;
+    border-radius: 20px;
+    max-width: 700px;
+    margin: auto;
+}}
+.genie {{
+    background: white;
+    padding: 16px;
+    margin-top: 15px;
+    border-radius: 15px;
+    border-left: 4px solid #9b7cff;
+}}
+</style>
+""", unsafe_allow_html=True)
 
-# =====================================================
-# APPLY CSS GRADIENT
-# =====================================================
-st.markdown(
-    f"""
-    <style>
-        .stApp {{
-            background: linear-gradient(135deg, {grad_start}, {grad_end}) !important;
-            color: #000000;
-        }}
-        section[data-testid="stSidebar"] {{
-            background: rgba(255,255,255,0.3) !important;
-            backdrop-filter: blur(4px);
-        }}
-        html, body, [class*="css"] {{
-            font-family: 'Poppins', sans-serif !important;
-        }}
-        .question-box {{
-            padding: 20px;
-            background: #ffffff;
-            border-radius: 18px;
-            font-size: 19px;
-            border: 2px solid #ffffff55;
-        }}
-    </style>
-    """,
-    unsafe_allow_html=True
-)
+# ================= HEADER =================
+st.markdown("""
+<h1 style="text-align:center;">✨ StudyGenie AI – Your Personal AI Study Bestie 💕</h1>
+<p style="text-align:center;">Always here for your doubts, dreams & glow-up ✨</p>
+""", unsafe_allow_html=True)
 
-# =====================================================
-# SIDEBAR — MAIN MENU
-# =====================================================
-with st.sidebar:
-    st.title("😘 StudyGenie — Your AI Bestie 💖")
-
-    tool = st.radio(
-        "Choose a Tool ✨",
-        [
-            "AI Doubt Solver",
-            "Notes Generator",
-            "Summary Maker",
-            "Timetable Builder",
-            "Motivation Booster",
-            "Flashcards",
-            "Brain-Dump Cleaner",
-            "Answer Checker",
-            "AI Planner",
-            "Mindset Reset",
-            "Study Routine Designer",
-            "Exam Strategy Maker",
-            "Personal Study Coach",
-            "Mini IQ Test Game 🧠"
-        ]
-    )
-
-# =====================================================
-# CHAT HISTORY SETUP
-# =====================================================
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = []
-if "clear_input" not in st.session_state:
-    st.session_state.clear_input = False
-
-# =====================================================
-# BACKEND AI CALL
-# =====================================================
+# ================= AI CALL =================
 def ask_ai(prompt):
     headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {st.secrets['OPENAI_API_KEY']}"
+        "Authorization": f"Bearer {st.secrets['OPENAI_API_KEY']}",
+        "Content-Type": "application/json"
     }
-
     payload = {
         "model": "gpt-4.1-mini",
         "messages": [{"role": "user", "content": prompt}],
-        "max_tokens": 4000,
-        "temperature": 0.65
+        "temperature": 0.6,
+        "max_tokens": 1500
     }
+    r = requests.post(
+        "https://api.openai.com/v1/chat/completions",
+        headers=headers,
+        data=json.dumps(payload)
+    )
+    return r.json()["choices"][0]["message"]["content"]
 
-    try:
-        r = requests.post("https://api.openai.com/v1/chat/completions",
-                          headers=headers, data=json.dumps(payload), timeout=20)
-        data = r.json()
+# ================= SIDEBAR =================
+tool = st.sidebar.radio(
+    "✨ Choose your tool",
+    [
+        "AI Planner",
+        "Mindset Reset",
+        "Study Routine Designer",
+        "Exam Strategy Maker",
+        "Personal Study Coach",
+        "Mini IQ Test 🧠"
+    ]
+)
 
-        if "choices" not in data:
-            return "⚠️ Bestie the AI fainted 😭"
+# ================= AI PLANNER =================
+if tool == "AI Planner":
+    st.markdown("<div class='section'>", unsafe_allow_html=True)
+    st.subheader("📆 Daily Study Planner")
 
-        reply = data["choices"][0]["message"]["content"]
+    goal = st.text_input("Your goal:")
 
-        st.session_state.chat_history.append({"you": prompt, "ai": reply})
-        st.session_state["clear_input"] = True
-        return reply
+    if st.button("Make Plan ✨"):
+        res = ask_ai(f"Create a simple daily study plan for: {goal}")
+        st.markdown(f"<div class='genie'>{res}</div>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
-    except Exception as e:
-        return "❌ Error: " + str(e)
+# ================= MINDSET RESET =================
+elif tool == "Mindset Reset":
+    st.markdown("<div class='section'>", unsafe_allow_html=True)
+    st.subheader("🌸 Mindset Reset")
 
-# =====================================================
-# NORMAL TOOLS (Everything except IQ Game)
-# =====================================================
-if tool != "Mini IQ Test Game 🧠":
-    st.markdown(f"<h1 style='text-align:center;'>✨ {tool} ✨</h1>", unsafe_allow_html=True)
+    if st.button("Reset My Mind ✨"):
+        res = ask_ai("Give a calm, motivating mindset reset.")
+        st.markdown(f"<div class='genie'>{res}</div>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
-    # Display chat history
-    for chat in st.session_state.chat_history:
-        st.markdown(f"**You:** {chat['you']}")
-        st.markdown(f"**Genie:** {chat['ai']}")
+# ================= STUDY ROUTINE =================
+elif tool == "Study Routine Designer":
+    st.markdown("<div class='section'>", unsafe_allow_html=True)
+    st.subheader("📚 Study Routine Designer")
 
-    default_text = "" if st.session_state.clear_input else st.session_state.get("last_prompt", "")
-    prompt = st.text_area("Type your message 💬", value=default_text)
-    st.session_state.last_prompt = prompt
+    hrs = st.slider("How many hours can you study daily?", 1, 10, 4)
 
-    if st.button("Send"):
-        if prompt.strip() != "":
-            st.session_state.clear_input = True
-            response = ask_ai(f"{tool}: {prompt}")
-            st.markdown(f"**Genie:** {response}")
-            st.session_state.last_prompt = ""
+    if st.button("Design Routine ✨"):
+        res = ask_ai(f"Design a clean study routine for {hrs} hours.")
+        st.markdown(f"<div class='genie'>{res}</div>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
-    if st.button("Clear Chat History"):
-        st.session_state.chat_history = []
-        st.session_state.last_prompt = ""
-        st.session_state.clear_input = True
-        st.rerun()
+# ================= EXAM STRATEGY =================
+elif tool == "Exam Strategy Maker":
+    st.markdown("<div class='section'>", unsafe_allow_html=True)
+    st.subheader("🎯 Exam Strategy")
 
-# =====================================================
-# MINI IQ TEST GAME 🧠
-# =====================================================
-if tool == "Mini IQ Test Game 🧠":
+    exam = st.text_input("Your exam:")
 
-    st.markdown("<h1 style='text-align:center;'>🧠 Mini IQ Test (MCQ Edition)</h1>", unsafe_allow_html=True)
+    if st.button("Build Strategy ✨"):
+        res = ask_ai(f"Create a high-impact exam strategy for {exam}")
+        st.markdown(f"<div class='genie'>{res}</div>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
-    # -------------- IQ QUESTIONS --------------
-    iq_mcq = [
-        ("What number comes next? 2, 6, 12, 20, 30, __",
-         ["36", "40", "42", "44"], "42"),
+# ================= STUDY COACH =================
+elif tool == "Personal Study Coach":
+    st.markdown("<div class='section'>", unsafe_allow_html=True)
+    st.subheader("💞 Personal Study Coach")
 
-        ("Which one is different?",
-         ["Cat", "Dog", "Lion", "Wolf"], "Cat"),
+    prob = st.text_area("Tell me what you're struggling with:")
 
-        ("Conclusion? If ALL roses are flowers and SOME flowers fade quickly…",
-         ["All roses fade quickly", "Some roses may fade quickly", "No roses fade quickly"], "Some roses may fade quickly"),
+    if st.button("Coach Me ✨"):
+        res = ask_ai(f"You are a kind personal study coach. Help with: {prob}")
+        st.markdown(f"<div class='genie'>{res}</div>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
-        ("Missing letter? A, D, G, J, M, __",
-         ["O", "P", "N", "Q"], "P"),
+# ================= IQ GAME (100+ READY) =================
+elif tool == "Mini IQ Test 🧠":
+    st.markdown("<div class='section'>", unsafe_allow_html=True)
+    st.subheader("🧠 Mini IQ Test")
 
-        ("Odd number: 27,64,125,144,216",
-         ["27", "144", "125", "216"], "144"),
-
-        ("What's bigger: 3/7 or 4/9?",
-         ["3/7", "4/9"], "4/9"),
-
-        ("Solve: (3×4)² ÷ 6",
-         ["12", "24", "36", "48"], "24"),
-
-        ("Sun : Day :: Moon : __",
-         ["Light", "Sky", "Night", "Dark"], "Night"),
-
-        ("Which weighs more?",
-         ["1 kg iron", "1 kg cotton", "Both same"], "Both same"),
-
-        ("45% of 200 =",
-         ["70", "80", "90", "100"], "90")
+    iq_questions = [
+        ("2, 6, 12, 20, ?", ["30", "28", "24", "36"], "30"),
+        ("A, D, G, J, ?", ["M", "K", "L", "N"], "M"),
+        ("Which is odd?", ["125", "64", "27", "144"], "144"),
+        # 👉 ADD UP TO 100+ SAME FORMAT
     ]
 
-    # Pick question
-    if "current_q" not in st.session_state:
-        st.session_state.current_q = random.choice(iq_mcq)
+    if "q" not in st.session_state:
+        st.session_state.q = random.choice(iq_questions)
 
-    question, options, answer = st.session_state.current_q
+    q, opt, ans = st.session_state.q
+    st.markdown(f"<div class='genie'><b>{q}</b></div>", unsafe_allow_html=True)
 
-    st.markdown(f"<div class='question-box'>{question}</div>", unsafe_allow_html=True)
+    choice = st.radio("Choose:", opt)
 
-    user_choice = st.radio("Choose option:", options)
-
-    if st.button("Submit Answer"):
-        if user_choice == answer:
-            st.success("🔥 Correct bestie!! Genius brain unlocked 💙💖")
+    if st.button("Submit"):
+        if choice == ans:
+            st.success("🔥 Correct! High-IQ detected")
         else:
-            st.error(f"😭 Wrong babe… the correct answer was **{answer}** 💗")
+            st.error(f"❌ Correct answer: {ans}")
 
     if st.button("Next Question"):
-        st.session_state.current_q = random.choice(iq_mcq)
+        st.session_state.q = random.choice(iq_questions)
         st.rerun()
+
+    st.markdown("</div>", unsafe_allow_html=True)
